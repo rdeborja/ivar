@@ -62,15 +62,16 @@ std::vector<allele> update_allele_depth(char ref,std::string bases, std::string 
     switch(bases[i]){
     case '.':
       b = ref;
-      end = (bases[i+1] == '$');
-      beg = (bases[i+1] == '^');
+      end = (bases[i+1] == '$') ? (i+1 < bases.length()) : false;
+      beg = (bases[i+1] == '^') ? (i+1 < bases.length()) : false;
       break;
     case ',':
       b = ref;
       forward = false;
-      end = (bases[i+1] == '$');
-      beg = (bases[i+1] == '^');
+      end = (bases[i+1] == '$') ? (i+1 < bases.length()) : false;
+      beg = (bases[i+1] == '^') ? (i+1 < bases.length()) : false;
       break;
+    case '#':			// For --reverse-del option
     case '*':
       b = bases[i];
       break;
