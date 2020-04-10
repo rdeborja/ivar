@@ -4,6 +4,7 @@ int vcf_writer::init_header(){
   this->hdr = bcf_hdr_init("w");
   int res;
   res = bcf_hdr_append(this->hdr,("##source=ivar"+(std::string)VERSION).c_str());
+  res = bcf_hdr_append(this->hdr, ("##contig=<ID=0,assembly="+this->region+">").c_str());
   res = bcf_hdr_append(this->hdr,"##ALT=<ID=*,Description=\"Represents allele(s) other than observed.\">");
   res = bcf_hdr_append(this->hdr,"##INFO=<ID=DP,Number=1,Type=Integer,Description=\"Raw read depth\">");
   res = bcf_hdr_append(this->hdr, "##INFO=<ID=AD,Number=R,Type=Integer,Description=\"Total read depth for each allele (based on minimum quality threshold)\">");
@@ -24,30 +25,19 @@ int vcf_writer::init_header(){
   return 0;
 }
 
-int vcf_writer::add_hdr_region(std::string region_name){
-  this->region = region_name;
-  int res = bcf_hdr_append(this->hdr, ("##contig=<ID="+this->region+">").c_str());
-  if(res != 0)
-    return -1;
-  return 0;
-}
-
-std::string vcf_writer::get_region(){
-  return this->region;
-}
-
 vcf_writer::~vcf_writer(){
   bcf_hdr_destroy(this->hdr);
   bcf_close(this->file);
 }
 
-vcf_writer::vcf_writer(char _mode, std::string fname, std::string sample_name, std::string ref_path){
+vcf_writer::vcf_writer(char _mode, std::string fname, std::string region_name, std::string sample_name, std::string ref_path){
   this->ref = new ref_antd(ref_path);
   this->sample_name = sample_name;
+  this->region = region_name;
+  this->init_header();
   std::string mode = "w";
   mode += _mode;
   this->file = bcf_open(fname.c_str(), mode.c_str());
-  this->init_header();
   if(this->hdr == NULL || this->file == NULL){
     std::cout << "Unable to write BCF/VCF file" << std::endl;
   }
@@ -73,12 +63,16 @@ void get_alleles_by_threshold(std::vector<allele> &aalt, double threshold, uint3
   std::vector<allele>::iterator it = aalt.begin();
   double cur_threshold;
   uint32_t cur_depth;
-  while(it != aalt.end() && (cur_threshold < threshold || it->depth == (it+1)->depth)){
+  cur_depth = it->depth;
+  cur_threshold = (double)cur_depth/(double)total_depth;
+  it++;
+  while(it != aalt.end() && (cur_threshold < threshold || it->depth == (it-1)->depth)){
     cur_depth += it->depth;
     cur_threshold = (double)cur_depth/(double)total_depth;
     it++;
   }
-  aalt.erase(it, aalt.end());
+  if(it<aalt.end())
+    aalt.erase(it, aalt.end());
 }
 
 int* set_genotype(std::vector<allele> aalt, char ref_nuc){
@@ -96,28 +90,31 @@ int* set_genotype(std::vector<allele> aalt, char ref_nuc){
   return tmp;
 }
 
-int vcf_writer::write_record(uint32_t pos, std::vector<allele> aalt, char ref_nuc, double threshold){
-  bcf1_t *rec = bcf_init();
+int vcf_writer::write_record(uint32_t pos, std::vector<allele> aalt, std::string region, char ref_nuc, double threshold){
+  if(aalt.size() == 0)
+    return 0;
+  int ref_pos = find_ref_in_allele(aalt, ref_nuc);
   uint32_t total_depth = get_total_depth(aalt);
-  rec->rid = bcf_hdr_name2id(this->hdr, this->region.c_str());
-  rec->pos  = pos - 1;		// converts to pos + 1 on write
-  bcf_update_id(this->hdr, rec, ".");
   std::string allele_str, ref_str;
   int max_del_len = 0, ctr = 0;
   std::vector<allele>::iterator it;
   get_alleles_by_threshold(aalt, threshold, total_depth);
-  int ref_pos = find_ref_in_allele(aalt, ref_nuc);
-  if(ref_pos != -1){
+  if(ref_pos != -1 && aalt.size() == 1)
+    return 0;
+  bcf1_t *rec = bcf_init();
+  rec->rid = bcf_hdr_name2id(this->hdr, "0");
+  rec->pos  = pos - 1;		// converts to pos + 1 on write
+  bcf_update_id(this->hdr, rec, ".");
+  if(ref_pos != -1)
     rec->qual = aalt.at(ref_pos).mean_qual;
-  }
   for (it = aalt.begin(); it != aalt.end(); ++it) {
     if(it->nuc[0] == ref_nuc && it->nuc.length() == 1) // Skip ref
       continue;
     if(it->nuc[0]=='-'){
       max_del_len = (it->nuc.length() -1 > max_del_len) ? it->nuc.length() : max_del_len;
-      allele_str += this->ref->get_base(pos, this->region);
+      allele_str += this->ref->get_base(pos, region);
     } else if (it->nuc[0] == '+') {
-      allele_str += this->ref->get_base(pos, this->region) + it->nuc.substr(1);
+      allele_str += this->ref->get_base(pos, region) + it->nuc.substr(1);
     } else {
       allele_str += it->nuc;
     }
@@ -125,7 +122,7 @@ int vcf_writer::write_record(uint32_t pos, std::vector<allele> aalt, char ref_nu
       allele_str += ",";
   }
   while(ctr < max_del_len + 1){	// By default add one pos from ref
-    ref_str += this->ref->get_base(pos + ctr, this->region);
+    ref_str += this->ref->get_base(pos + ctr, region);
     ctr++;
   }
   allele_str = ref_str + "," + allele_str;
@@ -135,6 +132,11 @@ int vcf_writer::write_record(uint32_t pos, std::vector<allele> aalt, char ref_nu
   int32_t *tmp = set_genotype(aalt, ref_nuc);
   bcf_update_genotypes(this->hdr, rec, tmp, asize);
   free(tmp);
+  // NS
+  int32_t tmpi = 1;
+  bcf_update_info_int32(this->hdr, rec, "NS", &tmpi, 1);
+  tmpi = bcf_hdr_id2int(this->hdr, BCF_DT_ID, "PASS");
+  bcf_update_filter(this->hdr, rec, &tmpi, 1);
   // FORMAT: add values for all genotypes
   int32_t *tmp_depth, *tmp_qual, *tmp_depth_forward, *tmp_depth_reverse;
   tmp_qual = (int32_t*) malloc((asize) * sizeof(int));
@@ -159,34 +161,31 @@ int vcf_writer::write_record(uint32_t pos, std::vector<allele> aalt, char ref_nu
   if(ref_pos != -1)
     aalt.erase(aalt.begin()+ref_pos); // Erase ref
   asize = aalt.size();
-  free(tmp_depth);
-  free(tmp_qual);
-  free(tmp_depth_forward);
-  free(tmp_depth_reverse);
-  free(tmp_freq);
-  tmp_qual = (int32_t*) malloc((asize) * sizeof(int));
-  tmp_depth_forward = (int32_t*)malloc((asize) * sizeof(int));
-  tmp_depth_reverse = (int32_t*)malloc((asize) * sizeof(int));
-  tmp_depth = (int32_t*)malloc((asize) * sizeof(int));
-  tmp_freq = (float*)malloc((asize)*sizeof(float));
-  for (it = aalt.begin(); it != aalt.end(); ++it) {
-    tmp_depth[it - aalt.begin()] = it->depth;
-    tmp_qual[it - aalt.begin()] = it->mean_qual;
-    tmp_depth_reverse[it - aalt.begin()] = it->reverse;
-    tmp_depth_forward[it - aalt.begin()] = it->depth - it->reverse;
-    tmp_freq[it - aalt.begin()] = (float) it->depth/(float) total_depth;
+  if(asize > 0){
+    free(tmp_depth);
+    free(tmp_qual);
+    free(tmp_depth_forward);
+    free(tmp_depth_reverse);
+    free(tmp_freq);
+    tmp_qual = (int32_t*) malloc((asize) * sizeof(int));
+    tmp_depth_forward = (int32_t*)malloc((asize) * sizeof(int));
+    tmp_depth_reverse = (int32_t*)malloc((asize) * sizeof(int));
+    tmp_depth = (int32_t*)malloc((asize) * sizeof(int));
+    tmp_freq = (float*)malloc((asize)*sizeof(float));
+    for (it = aalt.begin(); it != aalt.end(); ++it) {
+      tmp_depth[it - aalt.begin()] = it->depth;
+      tmp_qual[it - aalt.begin()] = it->mean_qual;
+      tmp_depth_reverse[it - aalt.begin()] = it->reverse;
+      tmp_depth_forward[it - aalt.begin()] = it->depth - it->reverse;
+      tmp_freq[it - aalt.begin()] = (float) it->depth/(float) total_depth;
+    }
+    bcf_update_info_int32(this->hdr, rec, "DP", tmp_depth, asize);
+    bcf_update_info_int32(this->hdr, rec, "AD", tmp_depth, asize);
+    bcf_update_info_int32(this->hdr, rec, "ADF", tmp_depth_forward, asize);
+    bcf_update_info_int32(this->hdr, rec, "ADR", tmp_depth_reverse, asize);
+    bcf_update_info_int32(this->hdr, rec, "GQ", tmp_qual, asize);
+    bcf_update_info_float(this->hdr, rec, "AF", tmp_freq, asize);
   }
-  int32_t tmpi = 1;
-  // NS
-  bcf_update_info_int32(this->hdr, rec, "DP", tmp_depth, asize);
-  bcf_update_info_int32(this->hdr, rec, "NS", &tmpi, 1);
-  tmpi = bcf_hdr_id2int(this->hdr, BCF_DT_ID, "PASS");
-  bcf_update_filter(this->hdr, rec, &tmpi, 1);
-  bcf_update_info_int32(this->hdr, rec, "AD", tmp_depth, asize);
-  bcf_update_info_int32(this->hdr, rec, "ADF", tmp_depth_forward, asize);
-  bcf_update_info_int32(this->hdr, rec, "ADR", tmp_depth_reverse, asize);
-  bcf_update_info_int32(this->hdr, rec, "GQ", tmp_qual, asize);
-  bcf_update_info_float(this->hdr, rec, "AF", tmp_freq, asize);
   int res;
   res = bcf_write1(this->file, this->hdr, rec);
   if(res != 0)
@@ -201,9 +200,10 @@ int vcf_writer::write_record(uint32_t pos, std::vector<allele> aalt, char ref_nu
 }
 
 // int main(int argc, char *argv[]) {
-//   vcf_writer *vw = new vcf_writer('b', "./test.vcf", "test", "test_sample", "../data/db/test_ref.fa");
+//   vcf_writer *vw = new vcf_writer('b', "./test.vcf", "test_sample", "../data/db/test_ref.fa");
+//   vw->add_hdr_region("test");
 //   allele r = {
-//   depth: 8,
+//   depth: 20,
 //   reverse: 2,
 //   nuc: "C",
 //   mean_qual:30
@@ -214,14 +214,14 @@ int vcf_writer::write_record(uint32_t pos, std::vector<allele> aalt, char ref_nu
 //   nuc: "T",
 //   mean_qual:25
 //   };
-//   allele a2 = {
-//   depth: 20,
-//   reverse: 6,
-//   nuc: "A",
-//   mean_qual:25
-//   };
-//   std::vector<allele> a = {r, a1, a2};
-//   vw->write_record(5, a, 'C', 0.9);
+//   // allele a2 = {
+//   // depth: 20,
+//   // reverse: 6,
+//   // nuc: "A",
+//   // mean_qual:25
+//   // };
+//   std::vector<allele> a = {r, a1};
+//   vw->write_record(5, a, 'C', 0);
 //   delete vw;
 //   return 0;
 // }
