@@ -16,7 +16,7 @@
 #include "suffix_tree.h"
 #include "get_common_variants.h"
 
-const std::string VERSION = "1.2.2";
+#include "version.h"
 
 struct args_t {
   std::string bam;		// -i
@@ -98,7 +98,7 @@ void print_filtervariants_usage(){
 
 void print_consensus_usage(){
   std::cout <<
-    "Usage: samtools mpileup -aa -A -d 0 -Q 0 <input.bam> | ivar consensus -p <prefix> \n\n"
+    "Usage: samtools mpileup -aa -A -d 0 -B -Q 0 --reference [<reference-fasta] <input.bam> | ivar consensus -p <prefix> \n\n"
     "Note : samtools mpileup output must be piped into `ivar consensus`\n\n"
     "Input Options    Description\n"
     "           -q    Minimum quality score threshold to count base (Default: 20)\n"
@@ -312,6 +312,7 @@ int main(int argc, char* argv[]){
     g_args.gap = 'N';
     g_args.min_qual = 20;
     g_args.keep_min_coverage = true;
+    g_args.ref = "";
     while( opt != -1 ) {
       switch( opt ) {
       case 't':
@@ -329,9 +330,11 @@ int main(int argc, char* argv[]){
       case 'q':
 	g_args.min_qual = std::stoi(optarg);
 	break;
+      case 'r':
+	g_args.ref = optarg;
+	break;
       case 'k':
 	g_args.keep_min_coverage = false;
-      case 'g':
 	break;
       case 'h':
       case '?':
@@ -360,7 +363,9 @@ int main(int argc, char* argv[]){
       std::cout << "Regions with depth less than minimum depth will not added to consensus" << std::endl;
     else
       std::cout << "Regions with depth less than minimum depth covered by: " << g_args.gap << std::endl;
-    res = call_consensus_from_plup(std::cin, g_args.prefix, g_args.min_qual, g_args.min_threshold, g_args.min_depth, g_args.gap, g_args.keep_min_coverage);
+    if(g_args.ref.empty())
+      std::cout << "Reference file not supplied. BCF report of variants will not be generated." << std::endl;
+    res = call_consensus_from_plup(std::cin, g_args.prefix, g_args.min_qual, g_args.min_threshold, g_args.min_depth, g_args.gap, g_args.keep_min_coverage, g_args.ref);
   } else if (cmd.compare("removereads") == 0){
     opt = getopt( argc, argv, removereads_opt_str);
     while( opt != -1 ) {

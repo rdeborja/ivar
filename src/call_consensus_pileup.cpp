@@ -130,11 +130,12 @@ ret_t get_consensus_allele(std::vector<allele> ad, uint8_t min_qual, double thre
   return t;
 }
 
-int call_consensus_from_plup(std::istream &cin, std::string out_file, uint8_t min_qual, double threshold, uint8_t min_depth, char gap, bool min_coverage_flag){
+int call_consensus_from_plup(std::istream &cin, std::string out_file, uint8_t min_qual, double threshold, uint8_t min_depth, char gap, bool min_coverage_flag, std::string ref_path){
   std::string line, cell;
   std::ofstream fout((out_file+".fa").c_str());
   std::ofstream tmp_qout((out_file+".qual.txt").c_str());
   char *o = new char[out_file.length() + 1];
+  vcf_writer *vw = new vcf_writer('b', out_file, "test", basename(o), ref_path); // add region
   strcpy(o, out_file.c_str());
   fout << ">Consensus_" << basename(o) << "_threshold_" << threshold << "_quality_" << (uint16_t) min_qual  <<std::endl;
   delete [] o;
@@ -146,6 +147,7 @@ int call_consensus_from_plup(std::istream &cin, std::string out_file, uint8_t mi
   std::string qualities;
   std::vector<allele> ad;
   uint32_t bases_zero_depth = 0, bases_min_depth = 0, total_bases = 0;
+  std::string region;
   while (std::getline(cin, line)){
     lineStream << line;
     ctr = 0;
@@ -153,6 +155,7 @@ int call_consensus_from_plup(std::istream &cin, std::string out_file, uint8_t mi
     while(std::getline(lineStream,cell,'\t')){
       switch(ctr){
       case 0:
+	region = cell;
 	break;
       case 1:
 	pos = stoi(cell);
