@@ -3,6 +3,7 @@
 int vcf_writer::init_header(){
   this->hdr = bcf_hdr_init("w");
   int res;
+  res = bcf_hdr_append(this->hdr,("##source=ivar"+(std::string)VERSION).c_str());
   res = bcf_hdr_append(this->hdr,"##ALT=<ID=*,Description=\"Represents allele(s) other than observed.\">");
   res = bcf_hdr_append(this->hdr,"##INFO=<ID=DP,Number=1,Type=Integer,Description=\"Raw read depth\">");
   res = bcf_hdr_append(this->hdr, "##INFO=<ID=AD,Number=R,Type=Integer,Description=\"Total read depth for each allele (based on minimum quality threshold)\">");
@@ -189,28 +190,28 @@ int vcf_writer::write_record(uint32_t pos, std::vector<allele> aalt, char ref_nu
   return res;
 }
 
-int main(int argc, char *argv[]) {
-  vcf_writer *vw = new vcf_writer('b', "./test.vcf", "test", "test_sample", "../data/db/test_ref.fa");
-  allele r = {
-  depth: 10,
-  reverse: 2,
-  nuc: "C",
-  mean_qual:30
-  };
-  allele a1 = {
-  depth: 10,
-  reverse: 6,
-  nuc: "T",
-  mean_qual:25
-  };
-  allele a2 = {
-  depth: 20,
-  reverse: 6,
-  nuc: "A",
-  mean_qual:25
-  };
-  std::vector<allele> a = {r, a1, a2};
-  vw->write_record(5, a, 'C', 1);
-  delete vw;
-  return 0;
-}
+// int main(int argc, char *argv[]) {
+//   vcf_writer *vw = new vcf_writer('b', "./test.vcf", "test", "test_sample", "../data/db/test_ref.fa");
+//   allele r = {
+//   depth: 8,
+//   reverse: 2,
+//   nuc: "C",
+//   mean_qual:30
+//   };
+//   allele a1 = {
+//   depth: 10,
+//   reverse: 6,
+//   nuc: "T",
+//   mean_qual:25
+//   };
+//   allele a2 = {
+//   depth: 20,
+//   reverse: 6,
+//   nuc: "A",
+//   mean_qual:25
+//   };
+//   std::vector<allele> a = {r, a1, a2};
+//   vw->write_record(5, a, 'C', 0.9);
+//   delete vw;
+//   return 0;
+// }

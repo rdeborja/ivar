@@ -5,6 +5,7 @@
 #include "ref_seq.h"
 #include "htslib/vcf.h"
 #include "htslib/kstring.h"
+#include "version.h"
 
 class vcf_writer{
   vcfFile *file;
