@@ -4,7 +4,7 @@ int vcf_writer::init_header(){
   this->hdr = bcf_hdr_init("w");
   int res;
   res = bcf_hdr_append(this->hdr,("##source=ivar"+(std::string)VERSION).c_str());
-  res = bcf_hdr_append(this->hdr, ("##contig=<ID=0,assembly="+this->region+">").c_str());
+  res = bcf_hdr_append(this->hdr, ("##contig=<ID="+this->region+">").c_str());
   res = bcf_hdr_append(this->hdr,"##ALT=<ID=*,Description=\"Represents allele(s) other than observed.\">");
   res = bcf_hdr_append(this->hdr,"##INFO=<ID=DP,Number=1,Type=Integer,Description=\"Raw read depth\">");
   res = bcf_hdr_append(this->hdr, "##INFO=<ID=AD,Number=R,Type=Integer,Description=\"Total read depth for each allele (based on minimum quality threshold)\">");
@@ -85,12 +85,12 @@ int* set_genotype(std::vector<allele> aalt, char ref_nuc){
       ctr = 0;
       ref_offset = 1;
     }
-    tmp[it-aalt.begin()] = bcf_gt_unphased(ctr);
+    tmp[it-aalt.begin()] = bcf_gt_phased(ctr);
   }
   return tmp;
 }
 
-int vcf_writer::write_record(uint32_t pos, std::vector<allele> aalt, std::string region, char ref_nuc, double threshold){
+int vcf_writer::write_record(uint32_t pos, std::vector<allele> aalt, std::string region_name, char ref_nuc, double threshold){
   if(aalt.size() == 0)
     return 0;
   int ref_pos = find_ref_in_allele(aalt, ref_nuc);
@@ -102,7 +102,7 @@ int vcf_writer::write_record(uint32_t pos, std::vector<allele> aalt, std::string
   if(ref_pos != -1 && aalt.size() == 1)
     return 0;
   bcf1_t *rec = bcf_init();
-  rec->rid = bcf_hdr_name2id(this->hdr, "0");
+  rec->rid = bcf_hdr_name2id(this->hdr, region_name.c_str());
   rec->pos  = pos - 1;		// converts to pos + 1 on write
   bcf_update_id(this->hdr, rec, ".");
   if(ref_pos != -1)
@@ -112,17 +112,20 @@ int vcf_writer::write_record(uint32_t pos, std::vector<allele> aalt, std::string
       continue;
     if(it->nuc[0]=='-'){
       max_del_len = (it->nuc.length() -1 > max_del_len) ? it->nuc.length() : max_del_len;
-      allele_str += this->ref->get_base(pos, region);
+      allele_str += this->ref->get_base(pos, region_name);
     } else if (it->nuc[0] == '+') {
-      allele_str += this->ref->get_base(pos, region) + it->nuc.substr(1);
+      allele_str += this->ref->get_base(pos, region_name) + it->nuc.substr(1);
     } else {
       allele_str += it->nuc;
     }
     if (it < aalt.end() - 1)
       allele_str += ",";
   }
+  // Remove , at end
+  if(allele_str[allele_str.length()-1] == ',')
+    allele_str = allele_str.substr(0, allele_str.length()-1);
   while(ctr < max_del_len + 1){	// By default add one pos from ref
-    ref_str += this->ref->get_base(pos + ctr, region);
+    ref_str += this->ref->get_base(pos + ctr, region_name);
     ctr++;
   }
   allele_str = ref_str + "," + allele_str;
