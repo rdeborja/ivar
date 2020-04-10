@@ -11,7 +11,6 @@ int vcf_writer::init_header(){
   res = bcf_hdr_append(this->hdr, "##INFO=<ID=ADR,Number=R,Type=Integer,Description=\"Total read depth for each allele on reverse strand (based on minimum quality threshold)\">");
   res = bcf_hdr_append(this->hdr, "##INFO=<ID=AF,Number=A,Type=Float,Description=\"Allele frequency for each ALT allele in the same order as listed (estimated from primary data, not called genotypes)\">");
   res = bcf_hdr_append(this->hdr, "##INFO=<ID=GQ,Number=1,Type=Integer,Description=\"Genotype Quality\">");
-  res = bcf_hdr_append(this->hdr, ("##contig=<ID="+this->region+">").c_str());
   res = bcf_hdr_append(this->hdr, "##FORMAT=<ID=GT,Number=1,Type=String,Description=\"Genotype\">");
   res = bcf_hdr_append(this->hdr, "##FORMAT=<ID=GQ,Number=1,Type=Integer,Description=\"Genotype Quality\">");
   res = bcf_hdr_append(this->hdr, "##FORMAT=<ID=AD,Number=R,Type=Integer,Description=\"Total read depth for each allele (based on minimum quality threshold)\">");
@@ -19,7 +18,15 @@ int vcf_writer::init_header(){
   res = bcf_hdr_append(this->hdr, "##FORMAT=<ID=ADR,Number=R,Type=Integer,Description=\"Total read depth for each allele on reverse strand (based on minimum quality threshold)\">");
   res = bcf_hdr_append(this->hdr, "##FORMAT=<ID=AF,Number=A,Type=Float,Description=\"Allele frequency for each ALT allele in the same order as listed (estimated from primary data, not called genotypes)\">");
   res = bcf_hdr_append(this->hdr, "##FILTER=<ID=fobs,Description=\"Fisher's exact test to check if frequency of the iSNV is significantly higher than the mean error rate at that position\">");
-  bcf_hdr_add_sample(this->hdr, this->sample_name.c_str());
+  res = bcf_hdr_add_sample(this->hdr, this->sample_name.c_str());
+  if(res != 0)
+    return -1;
+  return 0;
+}
+
+int vcf_writer::add_hdr_region(std::string region_name){
+  this->region = region_name;
+  int res = bcf_hdr_append(this->hdr, ("##contig=<ID="+this->region+">").c_str());
   if(res != 0)
     return -1;
   return 0;
@@ -30,7 +37,7 @@ vcf_writer::~vcf_writer(){
   bcf_close(this->file);
 }
 
-vcf_writer::vcf_writer(char _mode, std::string fname, std::string region, std::string sample_name, std::string ref_path){
+vcf_writer::vcf_writer(char _mode, std::string fname, std::string sample_name, std::string ref_path){
   this->ref = new ref_antd(ref_path);
   this->region = region;
   this->sample_name = sample_name;

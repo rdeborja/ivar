@@ -15,7 +15,8 @@ class vcf_writer{
   std::string sample_name;
   int init_header();
 public:
-  vcf_writer(char _mode, std::string fname, std::string region, std::string sample_name, std::string ref_path);
+  vcf_writer(char _mode, std::string fname, std::string sample_name, std::string ref_path);
   int write_record(uint32_t pos, std::vector<allele> aalt, char ref_nuc, double threshold);
+  int add_hdr_region(std::string region_name);
   ~vcf_writer();
 };
