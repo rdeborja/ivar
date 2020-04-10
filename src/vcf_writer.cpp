@@ -18,7 +18,7 @@ int vcf_writer::init_header(){
   res = bcf_hdr_append(this->hdr, "##FORMAT=<ID=ADF,Number=R,Type=Integer,Description=\"Total read depth for each allele on forward strand (based on minimum quality threshold)\">");
   res = bcf_hdr_append(this->hdr, "##FORMAT=<ID=ADR,Number=R,Type=Integer,Description=\"Total read depth for each allele on reverse strand (based on minimum quality threshold)\">");
   res = bcf_hdr_append(this->hdr, "##FORMAT=<ID=AF,Number=A,Type=Float,Description=\"Allele frequency for each ALT allele in the same order as listed (estimated from primary data, not called genotypes)\">");
-  res = bcf_hdr_append(this->hdr, "##FILTER=<ID=fobs,Description=\"Fisher's exact test to check if frequency of the iSNV is significantly higher than the mean error rate at that position\">");
+  // res = bcf_hdr_append(this->hdr, "##FILTER=<ID=fobs,Description=\"Fisher's exact test to check if frequency of the iSNV is significantly higher than the mean error rate at that position\">");
   res = bcf_hdr_add_sample(this->hdr, this->sample_name.c_str());
   if(res != 0)
     return -1;
@@ -93,12 +93,12 @@ int* set_genotype(std::vector<allele> aalt, char ref_nuc){
 int vcf_writer::write_record(uint32_t pos, std::vector<allele> aalt, std::string region_name, char ref_nuc, double threshold){
   if(aalt.size() == 0)
     return 0;
-  int ref_pos = find_ref_in_allele(aalt, ref_nuc);
   uint32_t total_depth = get_total_depth(aalt);
   std::string allele_str, ref_str;
   int max_del_len = 0, ctr = 0;
   std::vector<allele>::iterator it;
-  get_alleles_by_threshold(aalt, threshold, total_depth);
+  get_alleles_by_threshold(aalt, threshold, total_depth); // Remove alleles not needed to get above threshold
+  int ref_pos = find_ref_in_allele(aalt, ref_nuc);
   if(ref_pos != -1 && aalt.size() == 1)
     return 0;
   bcf1_t *rec = bcf_init();
