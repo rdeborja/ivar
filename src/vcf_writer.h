@@ -18,5 +18,6 @@ public:
   vcf_writer(char _mode, std::string fname, std::string sample_name, std::string ref_path);
   int write_record(uint32_t pos, std::vector<allele> aalt, char ref_nuc, double threshold);
   int add_hdr_region(std::string region_name);
+  std::string get_region();
   ~vcf_writer();
 };

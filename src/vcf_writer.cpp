@@ -32,6 +32,10 @@ int vcf_writer::add_hdr_region(std::string region_name){
   return 0;
 }
 
+std::string vcf_writer::get_region(){
+  return this->region;
+}
+
 vcf_writer::~vcf_writer(){
   bcf_hdr_destroy(this->hdr);
   bcf_close(this->file);
@@ -39,7 +43,6 @@ vcf_writer::~vcf_writer(){
 
 vcf_writer::vcf_writer(char _mode, std::string fname, std::string sample_name, std::string ref_path){
   this->ref = new ref_antd(ref_path);
-  this->region = region;
   this->sample_name = sample_name;
   std::string mode = "w";
   mode += _mode;
@@ -53,7 +56,7 @@ vcf_writer::vcf_writer(char _mode, std::string fname, std::string sample_name, s
   }
 }
 
-bool compare_allele_depth(const allele &a, const allele &b){
+bool compare_depth(const allele &a, const allele &b){
   return b.depth < a.depth;
 }
 
@@ -66,7 +69,7 @@ uint32_t get_total_depth(std::vector<allele> vec){
 }
 
 void get_alleles_by_threshold(std::vector<allele> &aalt, double threshold, uint32_t total_depth){
-  std::sort(aalt.begin(), aalt.end(), compare_allele_depth); // Sort by depth
+  std::sort(aalt.begin(), aalt.end(), compare_depth); // Sort by depth
   std::vector<allele>::iterator it = aalt.begin();
   double cur_threshold;
   uint32_t cur_depth;
