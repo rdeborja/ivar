@@ -160,7 +160,7 @@ void print_version_info(){
 
 static const char *trim_opt_str = "i:b:p:m:q:s:eh?";
 static const char *variants_opt_str = "p:t:q:m:r:g:h?";
-static const char *consensus_opt_str = "p:q:t:m:n:kh?";
+static const char *consensus_opt_str = "p:q:t:m:n:r:kh?";
 static const char *removereads_opt_str = "i:p:t:b:h?";
 static const char *filtervariants_opt_str = "p:t:f:h?";
 static const char *getmasked_opt_str = "i:b:f:p:h?";
