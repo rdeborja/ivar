@@ -90,6 +90,26 @@ int* set_genotype(std::vector<allele> aalt, char ref_nuc){
   return tmp;
 }
 
+int vcf_writer::write_record_below_threshold(uint32_t pos, std::string region_name, char ref_nuc){
+  bcf1_t *rec = bcf_init();
+  rec->rid = bcf_hdr_name2id(this->hdr, region_name.c_str());
+  rec->pos  = pos - 1;		// converts to pos + 1 on write
+  bcf_update_id(this->hdr, rec, ".");
+  int *tmp = (int*) malloc(2 * sizeof(int));
+  tmp[0] = bcf_gt_missing;
+  tmp[1] = bcf_gt_missing;
+  bcf_update_genotypes(this->hdr, rec, tmp, 2);
+  // int32_t tmpi = bcf_hdr_id2int(this->hdr, BCF_DT_ID, "FAIL");
+  // bcf_update_filter(this->hdr, rec, &tmpi, 1);
+  int res;
+  res = bcf_write1(this->file, this->hdr, rec);
+  if(res != 0)
+    std::cout << "Unable to write to VCF/BCF file!" << std::endl;
+  bcf_clear1(rec);
+  free(tmp);
+  return res;
+}
+
 int vcf_writer::write_record(uint32_t pos, std::vector<allele> aalt, std::string region_name, char ref_nuc, double threshold){
   if(aalt.size() == 0)
     return 0;
