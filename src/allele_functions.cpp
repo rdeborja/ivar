@@ -15,23 +15,34 @@ void print_allele_depths(std::vector<allele> ad){
     std::cout << "Qual: " << (uint16_t) it->mean_qual << std::endl;
     std::cout << "Beg: " << it->beg << std::endl;
     std::cout << "End: " << it->end << std::endl;
+    std::cout << "Deleted bases: " << it->deleted_bases << std::endl << std::endl;
   }
 }
 
-int check_allele_exists(std::string n, std::vector<allele> ad){
+int check_allele_exists(std::string n, std::string deleted_bases, std::vector<allele> ad){
   for(std::vector<allele>::iterator it = ad.begin(); it != ad.end(); ++it) {
-    if(it->nuc.compare(n) == 0){
+    if(it->nuc.compare(n) == 0 && it->deleted_bases.compare(deleted_bases) == 0){
       return it - ad.begin();
     }
   }
   return -1;
 }
 
-int find_ref_in_allele(std::vector<allele> ad, char ref){
+int find_ref_in_allele(std::vector<allele> ad, char ref){ // For only SNVs
   std::string ref_s(1, ref);
   std::vector<allele>::iterator it = ad.begin();
   while(it < ad.end()){
-    if(it->nuc.compare(ref_s) == 0)
+    if(it->nuc.compare(ref_s) == 0 && it->deleted_bases.empty())
+      return (it - ad.begin());
+    it++;
+  }
+  return -1;
+}
+
+int find_ref_in_allele(std::vector<allele> ad, std::string deleted_bases, std::string ref){ // For indels
+  std::vector<allele>::iterator it = ad.begin();
+  while(it < ad.end()){
+    if(it->nuc.compare(ref) == 0 && it->deleted_bases.compare(deleted_bases) == 0)
       return (it - ad.begin());
     it++;
   }
@@ -44,9 +55,15 @@ std::vector<allele> update_allele_depth(char ref,std::string bases, std::string 
   uint32_t i = 0, n =0, j = 0, q_ind = 0;
   bool beg, end;
   uint8_t q;
+  std::string deleted_bases;
+  std::string b;
+  bool forward;
   while (i < bases.length()){
+    b.clear();
+    forward = true;
     beg = false;
     end = false;
+    deleted_bases .clear();
     if(bases[i] == '^'){
       i += 2;			// Skip mapping quality as well (i+1) - 33
       continue;
@@ -56,9 +73,7 @@ std::vector<allele> update_allele_depth(char ref,std::string bases, std::string 
       continue;
     }
     q = qualities[q_ind] - 33;
-    std::string b;
     allele tmp;
-    bool forward= true;
     switch(bases[i]){
     case '.':
       b = ref;
@@ -72,23 +87,13 @@ std::vector<allele> update_allele_depth(char ref,std::string bases, std::string 
       beg = (bases[i+1] == '^') ? (i+1 < bases.length()) : false;
       break;
     case '#':			// For --reverse-del option
+      b = bases[i];
+      forward = false;
+      break;
     case '*':
       b = bases[i];
       break;
-    case '+': case '-':
-      j = i+1;
-      while(isdigit(bases[j])){
-	j++;
-      }
-      j = j - (i+1);
-      n = stoi(bases.substr(i+1, j));
-      indel = bases.substr(i+1+j, n);
-      transform(indel.begin(), indel.end(), indel.begin(),::toupper);
-      b = bases[i] + indel;	// + for Insertion and - for Deletion
-      i += n + j;
-      if(indel[0]>=97 && indel[0] <= 122)
-	forward=false;
-      q = min_qual;		// For insertions and deletion ust use minimum quality.
+    case '+': case '-':		// Indels handled after
       break;
     default:
       int asc_val = bases[i];
@@ -101,7 +106,25 @@ std::vector<allele> update_allele_depth(char ref,std::string bases, std::string 
       end = (bases[i+1] == '$');
       beg = (bases[i+1] == '^');
     }
-    int ind = check_allele_exists(b, ad);
+    if(i+1 < bases.length() && (bases[i+1] == '+' || bases[i+1] == '-')){ // Indels
+      j = i+2;
+      while(isdigit(bases[j])){
+	j++;
+      }
+      j = j - (i+2);
+      n = stoi(bases.substr(i+2, j));
+      indel = bases.substr(i+2+j, n);
+      transform(indel.begin(), indel.end(), indel.begin(),::toupper);
+      if(bases[i+1] == '+')	// For insertion remove + and add ref base
+	b += indel;
+      else {			// For deletion retain
+	deleted_bases = indel;
+      }
+      i += n + j + 1;
+      if(indel[0]>=97 && indel[0] <= 122)
+	forward=false;
+    }
+    int ind = check_allele_exists(b, deleted_bases, ad);
     if(q >= min_qual){
       if (ind==-1){
 	tmp.nuc = b;
@@ -119,6 +142,10 @@ std::vector<allele> update_allele_depth(char ref,std::string bases, std::string 
 	  tmp.end = 1;
 	else
 	  tmp.end = 0;
+	if(!deleted_bases.empty()) // Add deleted bases for deletions
+	  tmp.deleted_bases = deleted_bases;
+	else
+	  tmp.deleted_bases = "";
 	ad.push_back(tmp);
       } else {
 	ad.at(ind).tmp_mean_qual = (ad.at(ind).tmp_mean_qual * ad.at(ind).depth + q)/(ad.at(ind).depth + 1);
@@ -132,8 +159,7 @@ std::vector<allele> update_allele_depth(char ref,std::string bases, std::string 
       }
     }
     i++;
-    if(b[0] !='+' && b[0]!='-')
-      q_ind++;
+    q_ind++;
   }
   for(std::vector<allele>::iterator it = ad.begin(); it!=ad.end(); ++it){
     it->mean_qual = (uint8_t) it->tmp_mean_qual;
