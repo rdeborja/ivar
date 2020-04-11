@@ -28,6 +28,12 @@ int check_allele_exists(std::string n, std::string deleted_bases, std::vector<al
   return -1;
 }
 
+bool is_indel(allele a){
+  if(a.nuc.length() > 1 || !a.deleted_bases.empty())
+    return true;
+  return false;
+}
+
 int find_ref_in_allele(std::vector<allele> ad, char ref){ // For only SNVs
   std::string ref_s(1, ref);
   std::vector<allele>::iterator it = ad.begin();
@@ -63,7 +69,7 @@ std::vector<allele> update_allele_depth(char ref,std::string bases, std::string 
     forward = true;
     beg = false;
     end = false;
-    deleted_bases .clear();
+    deleted_bases.clear();
     if(bases[i] == '^'){
       i += 2;			// Skip mapping quality as well (i+1) - 33
       continue;

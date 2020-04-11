@@ -15,13 +15,14 @@ struct allele{
   float tmp_mean_qual;
   std::string deleted_bases;	// For output of variants
   bool operator < (const allele& a) const{
-    return (nuc.compare(a.nuc) > 0) ? true : false;
+    return (depth > a.depth) ? true : false;
   }
   bool operator == (const allele& a) const{
-    return (nuc.compare(a.nuc) == 0) ? true : false;
+    return (nuc.compare(a.nuc) == 0 && deleted_bases.compare(a.deleted_bases) == 0) ? true : false;
   }
 };
 
+bool is_indel(allele a);
 int check_allele_exists(std::string n, std::string deleted_bases, std::vector<allele> ad);
 std::vector<allele> update_allele_depth(char ref,std::string bases, std::string qualities, uint8_t min_qual);
 void print_allele_depths(std::vector<allele> ad);
