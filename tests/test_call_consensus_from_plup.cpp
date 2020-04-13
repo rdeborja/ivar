@@ -3,7 +3,7 @@
 #include "../src/allele_functions.h"
 
 int main() {
-  int num_tests = 8;
+  int num_tests = 10;
   allele a1 = {
     "A",
     40,
@@ -32,7 +32,7 @@ int main() {
     0
   };
   allele a4 = {
-    "+T",
+    "AT",
     30,
     10,
     10,
@@ -41,7 +41,7 @@ int main() {
     0
   };
   allele a5 = {
-    "+AG",
+    "AAG",
     30,
     10,
     10,
@@ -50,8 +50,8 @@ int main() {
     0
   };
   allele a6 = {
-    "+AC",
-    30,
+    "AAC",
+    40,
     4,
     10,
     0,
@@ -59,8 +59,14 @@ int main() {
     0
   };
   allele a7 = {
-    "+WT",
-    30,
+    "AWG",
+    40,
+    2,
+    10
+  };
+  allele a8 = {
+    "CCT",
+    40,
     2,
     10,
     0,
@@ -68,66 +74,41 @@ int main() {
     0
   };
   int success = 0;
-  allele arr[] = {a1,a2,a3,a4,a5};
+  std::vector<allele> ad = {a1,a2,a3,a4,a5};
   ret_t s;
-  std::vector<allele> ad(arr, arr+sizeof(arr)/sizeof(allele));
-  int size = sizeof(arr)/sizeof(allele);
-  for(int i = 0;i<size;i++){
-    ad.at(i) = arr[i];
-  }
   s = get_consensus_allele(ad, 0, 0, 'N');
-  success += (s.nuc.compare("DW") == 0) ? 1: 0;
-  success += (s.q.compare("8+") == 0) ? 1 : 0;
+  success += (s.nuc.compare("D") == 0) ? 1: 0;
+  success += (s.q.compare("8") == 0) ? 1 : 0;
+  std::cout << s.q << std::endl;
   ad.push_back(a6);
   s = get_consensus_allele(ad, 0, 0, 'N');
-  success += (s.nuc.compare("DAS") == 0) ? 1: 0;
+  success += (s.nuc.compare("DAC") == 0) ? 1: 0;
   success += (s.q.compare("8++") == 0) ? 1 : 0;
+  std::cout << s.q << std::endl;
   ad.push_back(a7);
+  std::cout << s.nuc << std::endl;
   s = get_consensus_allele(ad, 0, 0, 'N');
-  success += (s.nuc.compare("DAB") == 0) ? 1: 0;
+  success += (s.nuc.compare("DWS") == 0) ? 1: 0;
   success += (s.q.compare("8++") == 0) ? 1 : 0;
-  allele a8 = {
-    "-AT",
-    10,
-    5,
-    20,
-    0,
-    0,
-    0
-  };
+  std::cout << s.nuc << std::endl;
+  ad.push_back(a8);
+  s = get_consensus_allele(ad, 0, 0, 'N');
+  success += (s.nuc.compare("NHB") == 0) ? 1: 0;
+  success += (s.q.compare("8++") == 0) ? 1 : 0;
+  std::cout << s.nuc << std::endl;
   allele a9 = {
-    "-A",
-    10,
+    "A",
+    50,
     5,
     20,
     0,
     0,
     0
   };
-  allele a10 = {
-    "-AG",
-    10,
-    5,
-    20,
-    0,
-    0,
-    0
-  };
-  allele a11 = {
-    "-AGT",
-    10,
-    5,
-    20,
-    0,
-    0,
-    0
-  };
-
-  allele del_arr[] = {a8, a9, a10, a11};
-  ret_t del_s;
-  std::vector<allele> del_ad(del_arr, del_arr+sizeof(del_arr)/sizeof(allele));
-  s = get_consensus_allele(del_ad, 0, 0, 'N');
-  success += (s.nuc.compare("") == 0) ? 1: 0;
-  success += (s.q.compare("") == 0) ? 1 : 0;
+  ad.push_back(a9);
+  s = get_consensus_allele(ad, 0, 0, 'N');
+  success += (s.nuc.compare("A") == 0) ? 1: 0;
+  success += (s.q.compare("8") == 0) ? 1 : 0;
+  std::cout << s.nuc << std::endl;
   return (success == num_tests) ? 0 : -1;
 }
