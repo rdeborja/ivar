@@ -46,35 +46,6 @@ vcf_writer::vcf_writer(char _mode, std::string fname, std::string region_name, s
   }
 }
 
-bool compare_depth(const allele &a, const allele &b){
-  return b.depth < a.depth;
-}
-
-uint32_t get_total_depth(std::vector<allele> vec){
-  uint32_t d = 0;
-  for (std::vector<allele>::iterator it = vec.begin(); it != vec.end(); ++it) {
-    d += it->depth;
-  }
-  return d;
-}
-
-void get_alleles_by_threshold(std::vector<allele> &aalt, double threshold, uint32_t total_depth){
-  std::sort(aalt.begin(), aalt.end(), compare_depth); // Sort by depth
-  std::vector<allele>::iterator it = aalt.begin();
-  double cur_threshold;
-  uint32_t cur_depth;
-  cur_depth = it->depth;
-  cur_threshold = (double)cur_depth/(double)total_depth;
-  it++;
-  while(it != aalt.end() && (cur_threshold < threshold || it->depth == (it-1)->depth)){
-    cur_depth += it->depth;
-    cur_threshold = (double)cur_depth/(double)total_depth;
-    it++;
-  }
-  if(it<aalt.end())
-    aalt.erase(it, aalt.end());
-}
-
 int* set_genotype(std::vector<allele> aalt, char ref_nuc){
   int *tmp = (int*) malloc((aalt.size())*sizeof(int));
   std::string ref(1, ref_nuc);
@@ -110,14 +81,13 @@ int vcf_writer::write_record_below_threshold(uint32_t pos, std::string region_na
   return res;
 }
 
-int vcf_writer::write_record(uint32_t pos, std::vector<allele> aalt, std::string region_name, char ref_nuc, double threshold){
+int vcf_writer::write_record(uint32_t pos, std::vector<allele> aalt, std::string region_name, char ref_nuc){
   if(aalt.size() == 0)
     return 0;
   uint32_t total_depth = get_total_depth(aalt);
   std::string allele_str, ref_str;
   int max_del_len = 0, ctr = 0;
   std::vector<allele>::iterator it;
-  get_alleles_by_threshold(aalt, threshold, total_depth); // Remove alleles not needed to get above threshold
   int ref_pos = find_ref_in_allele(aalt, ref_nuc);
   if(ref_pos != -1 && aalt.size() == 1)
     return 0;
