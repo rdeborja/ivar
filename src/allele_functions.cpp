@@ -34,6 +34,12 @@ bool is_indel(allele a){
   return false;
 }
 
+bool is_del(allele a){
+  if(!a.deleted_bases.empty())
+    return true;
+  return false;
+}
+
 int find_ref_in_allele(std::vector<allele> ad, char ref){ // For only SNVs
   std::string ref_s(1, ref);
   std::vector<allele>::iterator it = ad.begin();
@@ -44,6 +50,8 @@ int find_ref_in_allele(std::vector<allele> ad, char ref){ // For only SNVs
   }
   return -1;
 }
+
+
 
 int find_ref_in_allele(std::vector<allele> ad, std::string deleted_bases, std::string ref){ // For indels
   std::vector<allele>::iterator it = ad.begin();
@@ -332,4 +340,40 @@ char codon2aa(char n1, char n2, char n3){
   if((_n1 < 6) || (_n1 > 9) || (_n2 < 6) || (_n2 > 9) || (_n3 < 6) || (_n3 > 9))
     return 'X';
   return iupac_aa[_n1-6][_n2-6][_n3-6];
+}
+
+void get_alleles_by_threshold(std::vector<allele> &aalt, double threshold, uint32_t total_depth){
+  std::sort(aalt.begin(), aalt.end(), std::greater<allele>()); // Sort by depth in desc order
+  std::vector<allele>::iterator it = aalt.begin();
+  it = aalt.begin();
+  double cur_threshold;
+  uint32_t cur_depth;
+  cur_depth = it->depth;
+  cur_threshold = (double)cur_depth/(double)total_depth;
+  it++;
+  while(it != aalt.end() && (cur_threshold < threshold || it->depth == (it-1)->depth)){
+    cur_depth += it->depth;
+    cur_threshold = (double)cur_depth/(double)total_depth;
+    it++;
+  }
+  if(it<aalt.end())
+    aalt.erase(it, aalt.end());
+}
+
+uint32_t get_total_depth(std::vector<allele> vec){
+  uint32_t d = 0;
+  for (std::vector<allele>::iterator it = vec.begin(); it != vec.end(); ++it) {
+    d += it->depth;
+  }
+  return d;
+}
+
+uint8_t get_longest_insertion(std::vector<allele> vec){
+  uint8_t ind = 0;
+  uint16_t len = 0;
+  std::vector<allele>::iterator res;
+  res = std::max_element(vec.begin(), vec.end(), [](allele &a, allele &b) {
+      return a.nuc.length() < b.nuc.length();
+    });
+  return res->nuc.length();
 }
