@@ -106,6 +106,7 @@ std::vector<allele> update_allele_depth(char ref,std::string bases, std::string 
       break;
     case '*':
       b = bases[i];
+      q = min_qual;		// For padding just add min_qual. mpileup by default seems to replicate BQs from next position
       break;
     case '+': case '-':		// Indels handled after
       break;
