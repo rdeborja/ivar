@@ -3,10 +3,10 @@
 #include "../src/allele_functions.h"
 
 int main() {
-  int num_tests = 6;
+  int num_tests = 8;
   allele a1 = {
     "A",
-    6,
+    3,
     0,
     30,
     0,
@@ -14,7 +14,7 @@ int main() {
     0
   };
   allele ai1 = {
-    "+T",
+    "AT",
     3,
     0,
     30,
@@ -59,7 +59,7 @@ int main() {
     0
   };
   allele a6 = {
-    "G",
+    "GA",
     2,
     10,
     30,
@@ -75,19 +75,37 @@ int main() {
   for(int i = 0;i<size;i++){
     ad.at(i) = arr[i];
   }
+  // A, AT
   s = get_consensus_allele(ad,20,.6, 'N');
   std::cout << s.nuc << ": " << s.q << std::endl;
-  success += (s.nuc.compare("A") == 0) ? 1: 0;
-  success += (s.q.compare("?") == 0) ? 1 : 0;
+  success += (s.nuc.compare("AT") == 0) ? 1: 0;
+  success += (s.q.compare("?5") == 0) ? 1 : 0;
+  // A, AT, T, C, G -> NT
   s = get_consensus_allele(ad,20,.7, 'N');
   std::cout << s.nuc << ": " << s.q << std::endl;
-  success += (s.nuc.compare("N") == 0) ? 1: 0;
-  success += (s.q.compare("?") == 0) ? 1 : 0;
+  success += (s.nuc.compare("NT") == 0) ? 1: 0;
+  success += (s.q.compare("?5") == 0) ? 1 : 0;
+
+  // A, AT, GA
   ad.erase(ad.begin() + 4, ad.begin()+5);
   ad.push_back(a6);
   s = get_consensus_allele(ad,20,.7, 'N');
   std::cout << s.nuc << ": " << s.q << std::endl;
-  success += (s.nuc.compare("R") == 0) ? 1: 0;
-  success += (s.q.compare("?") == 0) ? 1 : 0;
+  success += (s.nuc.compare("RW") == 0) ? 1: 0;
+  success += (s.q.compare("?5") == 0) ? 1 : 0;
+
+  // *
+  allele a7 = {
+    "*",
+    10,
+    0,
+    30
+  };
+
+  ad.push_back(a7);
+  s = get_consensus_allele(ad,20,0, 'N');
+  std::cout << s.nuc << ": " << s.q << std::endl;
+  success += s.nuc.empty() ? 1: 0;
+  success += s.q.empty() ? 1 : 0;  
   return (success == num_tests) ? 0 : -1;
 }
