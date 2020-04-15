@@ -10,7 +10,8 @@ ret_t get_consensus_allele(std::vector<allele> ad, uint8_t min_qual, double thre
     return t;
   uint32_t total_depth = get_total_depth(ad);
   get_alleles_by_threshold(ad, threshold, total_depth);
-  uint16_t q = 0;
+  total_depth = get_total_depth(ad);
+  double q = 0;
   std::string nuc;
   std::string qual;
   char n;
@@ -26,15 +27,16 @@ ret_t get_consensus_allele(std::vector<allele> ad, uint8_t min_qual, double thre
       } else {
 	n = it->nuc.length() > i ? gt2iupac(n, it->nuc[i]) : n;
       }
-    }
-    if(i == 0){		// Get qual from first bases
-      q = q + (it->mean_qual) * it->depth;
-    } else {
-      q = min_qual;
+      if(i == 0){		// Get qual from first bases
+	q = q + (uint8_t)(it->mean_qual) * it->depth;
+      } else {
+	q = min_qual;
+      }
     }
     if(n!='*'){
       q = q/total_depth;
-      qual += ((uint8_t)q + 33);
+      q += 0.5;
+      qual += (((uint8_t)q) + 33);
       nuc += n;
     }
   }
