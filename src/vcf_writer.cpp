@@ -182,30 +182,3 @@ int vcf_writer::write_record(uint32_t pos, std::vector<allele> aalt, std::string
   free(tmp_freq);
   return res;
 }
-
-// int main(int argc, char *argv[]) {
-//   vcf_writer *vw = new vcf_writer('b', "./test.vcf", "test_sample", "../data/db/test_ref.fa");
-//   vw->add_hdr_region("test");
-//   allele r = {
-//   depth: 20,
-//   reverse: 2,
-//   nuc: "C",
-//   mean_qual:30
-//   };
-//   allele a1 = {
-//   depth: 10,
-//   reverse: 6,
-//   nuc: "T",
-//   mean_qual:25
-//   };
-//   // allele a2 = {
-//   // depth: 20,
-//   // reverse: 6,
-//   // nuc: "A",
-//   // mean_qual:25
-//   // };
-//   std::vector<allele> a = {r, a1};
-//   vw->write_record(5, a, 'C', 0);
-//   delete vw;
-//   return 0;
-// }
