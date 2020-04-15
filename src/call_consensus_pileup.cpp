@@ -45,7 +45,7 @@ ret_t get_consensus_allele(std::vector<allele> ad, uint8_t min_qual, double thre
   return t;
 }
 
-int call_consensus_from_plup(std::istream &cin, std::string out_file, uint8_t min_qual, double threshold, uint8_t min_depth, char gap, bool min_coverage_flag, std::string ref_path){
+int call_consensus_from_plup(std::istream &cin, std::string out_file, uint8_t min_qual, double threshold, uint8_t min_depth, char gap, bool min_coverage_flag){
   std::string line, cell;
   std::ofstream fout((out_file+".fa").c_str());
   std::ofstream tmp_qout((out_file+".qual.txt").c_str());
@@ -99,8 +99,7 @@ int call_consensus_from_plup(std::istream &cin, std::string out_file, uint8_t mi
       tmp_qout << std::string((pos - prev_pos) - 1, '!'); // ! represents 0 quality score.
     }
     if(vw == NULL){ // Note: for now consensus working only for 1 region
-      if(!ref_path.empty())
-	vw = new vcf_writer('b', out_file+".bcf", region, basename(o), ref_path);
+      vw = new vcf_writer('b', out_file+".bcf", region, basename(o));
     }
     ret_t t;
     if(mdepth >= min_depth){
