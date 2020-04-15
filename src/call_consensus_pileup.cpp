@@ -28,9 +28,9 @@ ret_t get_consensus_allele(std::vector<allele> ad, uint8_t min_qual, double thre
 	n = it->nuc.length() > i ? gt2iupac(n, it->nuc[i]) : n;
       }
       if(i == 0){		// Get qual from first bases
-	q = q + (uint8_t)(it->mean_qual) * it->depth;
+	q += (uint8_t)(it->mean_qual) * it->depth;
       } else {
-	q = min_qual;
+	q += min_qual * it->depth;
       }
     }
     if(n!='*'){
