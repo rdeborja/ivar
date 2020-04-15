@@ -30,8 +30,7 @@ vcf_writer::~vcf_writer(){
   bcf_close(this->file);
 }
 
-vcf_writer::vcf_writer(char _mode, std::string fname, std::string region_name, std::string sample_name, std::string ref_path){
-  this->ref = new ref_antd(ref_path);
+vcf_writer::vcf_writer(char _mode, std::string fname, std::string region_name, std::string sample_name){
   this->sample_name = sample_name;
   this->region = region_name;
   this->init_header();
@@ -85,8 +84,7 @@ int vcf_writer::write_record(uint32_t pos, std::vector<allele> aalt, std::string
   if(aalt.size() == 0)
     return 0;
   uint32_t total_depth = get_total_depth(aalt);
-  std::string allele_str, ref_str;
-  int max_del_len = 0, ctr = 0;
+  std::string allele_str, ref_str, l_deleted_bases;
   std::vector<allele>::iterator it;
   int ref_pos = find_ref_in_allele(aalt, ref_nuc);
   if(ref_pos != -1 && aalt.size() == 1)
@@ -100,13 +98,9 @@ int vcf_writer::write_record(uint32_t pos, std::vector<allele> aalt, std::string
   for (it = aalt.begin(); it != aalt.end(); ++it) {
     if(it->nuc[0] == ref_nuc && it->nuc.length() == 1) // Skip ref
       continue;
-    if(it->nuc[0]=='-'){
-      max_del_len = (it->nuc.length() -1 > max_del_len) ? it->nuc.length() : max_del_len;
-      allele_str += this->ref->get_base(pos, region_name);
-    } else if (it->nuc[0] == '+') {
-      allele_str += this->ref->get_base(pos, region_name) + it->nuc.substr(1);
-    } else {
-      allele_str += it->nuc;
+    allele_str += it->nuc;
+    if(is_del(*it)){
+      l_deleted_bases = (it->deleted_bases.length() > l_deleted_bases.length()) ? it->deleted_bases : l_deleted_bases;
     }
     if (it < aalt.end() - 1)
       allele_str += ",";
@@ -114,10 +108,7 @@ int vcf_writer::write_record(uint32_t pos, std::vector<allele> aalt, std::string
   // Remove , at end
   if(allele_str[allele_str.length()-1] == ',')
     allele_str = allele_str.substr(0, allele_str.length()-1);
-  while(ctr < max_del_len + 1){	// By default add one pos from ref
-    ref_str += this->ref->get_base(pos + ctr, region_name);
-    ctr++;
-  }
+  ref_str = ref_nuc + l_deleted_bases;
   allele_str = ref_str + "," + allele_str;
   bcf_update_alleles_str(this->hdr, rec, allele_str.c_str());
   int32_t asize = aalt.size();
