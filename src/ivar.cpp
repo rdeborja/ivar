@@ -160,7 +160,7 @@ void print_version_info(){
 
 static const char *trim_opt_str = "i:b:p:m:q:s:eh?";
 static const char *variants_opt_str = "p:t:q:m:r:g:h?";
-static const char *consensus_opt_str = "p:q:t:m:n:r:kh?";
+static const char *consensus_opt_str = "p:q:t:m:n:kh?";
 static const char *removereads_opt_str = "i:p:t:b:h?";
 static const char *filtervariants_opt_str = "p:t:f:h?";
 static const char *getmasked_opt_str = "i:b:f:p:h?";
@@ -312,7 +312,6 @@ int main(int argc, char* argv[]){
     g_args.gap = 'N';
     g_args.min_qual = 20;
     g_args.keep_min_coverage = true;
-    g_args.ref = "";
     while( opt != -1 ) {
       switch( opt ) {
       case 't':
@@ -329,9 +328,6 @@ int main(int argc, char* argv[]){
 	break;
       case 'q':
 	g_args.min_qual = std::stoi(optarg);
-	break;
-      case 'r':
-	g_args.ref = optarg;
 	break;
       case 'k':
 	g_args.keep_min_coverage = false;
@@ -363,9 +359,7 @@ int main(int argc, char* argv[]){
       std::cout << "Regions with depth less than minimum depth will not added to consensus" << std::endl;
     else
       std::cout << "Regions with depth less than minimum depth covered by: " << g_args.gap << std::endl;
-    if(g_args.ref.empty())
-      std::cout << "Reference file not supplied. BCF report of variants will not be generated." << std::endl;
-    res = call_consensus_from_plup(std::cin, g_args.prefix, g_args.min_qual, g_args.min_threshold, g_args.min_depth, g_args.gap, g_args.keep_min_coverage, g_args.ref);
+    res = call_consensus_from_plup(std::cin, g_args.prefix, g_args.min_qual, g_args.min_threshold, g_args.min_depth, g_args.gap, g_args.keep_min_coverage);
   } else if (cmd.compare("removereads") == 0){
     opt = getopt( argc, argv, removereads_opt_str);
     while( opt != -1 ) {
