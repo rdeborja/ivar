@@ -83,6 +83,8 @@ int vcf_writer::write_record_below_threshold(uint32_t pos, std::string region_na
 int vcf_writer::write_record(uint32_t pos, std::vector<allele> aalt, std::string region_name, char ref_nuc){
   if(aalt.size() == 0)
     return 0;
+  if(aalt.size() == 1 && aalt.at(0).nuc.compare("*") == 0)
+    return 0;
   uint32_t total_depth = get_total_depth(aalt);
   std::string allele_str, ref_str, l_deleted_bases;
   std::vector<allele>::iterator it;
