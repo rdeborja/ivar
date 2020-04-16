@@ -60,7 +60,7 @@ int* set_genotype(std::vector<allele> aalt, char ref_nuc){
   return tmp;
 }
 
-int vcf_writer::write_record_below_threshold(uint32_t pos, std::string region_name, char ref_nuc){
+int vcf_writer::write_record_below_threshold(uint32_t pos, std::string region_name){
   bcf1_t *rec = bcf_init();
   rec->rid = bcf_hdr_name2id(this->hdr, region_name.c_str());
   rec->pos  = pos - 1;		// converts to pos + 1 on write

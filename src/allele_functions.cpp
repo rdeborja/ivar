@@ -370,8 +370,6 @@ uint32_t get_total_depth(std::vector<allele> vec){
 }
 
 uint8_t get_longest_insertion(std::vector<allele> vec){
-  uint8_t ind = 0;
-  uint16_t len = 0;
   std::vector<allele>::iterator res;
   res = std::max_element(vec.begin(), vec.end(), [](allele &a, allele &b) {
       return a.nuc.length() < b.nuc.length();

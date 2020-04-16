@@ -21,7 +21,7 @@ int check_vcf(std::string obs){
   return comp;
 }
 
-int main(int argc, char *argv[])
+int main()
 {
   int success = 0;
   char ref = 'A';
@@ -29,12 +29,20 @@ int main(int argc, char *argv[])
       "ATG",
       1,
       2,
-      3
+      3,
+      0,
+      0,
+      0,
+      ""
     },{
       "T",
       4,
       5,
-      6
+      6,
+      0,
+      0,
+      0,
+      ""
     }, {
       "G",
       7,
@@ -54,12 +62,20 @@ int main(int argc, char *argv[])
       "A",
       1,
       2,
-      3
+      3,
+      0,
+      0,
+      0,
+      ""
     },{
       "T",
       4,
       5,
-      6
+      6,
+      0,
+      0,
+      0,
+      ""
     }, {
       "G",
       7,

@@ -11,7 +11,8 @@ int main() {
     30,
     0,
     0,
-    0
+    0,
+    ""
   };
   allele a2 = {
     "T",
@@ -20,7 +21,8 @@ int main() {
     30,
     0,
     0,
-    0
+    0,
+    ""
   };
   allele a3 = {
     "G",
@@ -29,7 +31,8 @@ int main() {
     10,
     0,
     0,
-    0
+    0,
+    ""
   };
   allele a4 = {
     "AT",
@@ -38,7 +41,8 @@ int main() {
     10,
     0,
     0,
-    0
+    0,
+    ""
   };
   allele a5 = {
     "AAG",
@@ -47,7 +51,8 @@ int main() {
     10,
     0,
     0,
-    0
+    0,
+    ""
   };
   allele a6 = {
     "AAC",
@@ -56,13 +61,18 @@ int main() {
     10,
     0,
     0,
-    0
+    0,
+    ""
   };
   allele a7 = {
     "AWG",
     40,
     2,
-    10
+    10,
+    0,
+    0,
+    0,
+    ""
   };
   allele a8 = {
     "CCT",
@@ -71,7 +81,8 @@ int main() {
     10,
     0,
     0,
-    0
+    0,
+    ""
   };
   int success = 0;
   std::vector<allele> ad = {a1,a2,a3,a4,a5};
@@ -118,7 +129,8 @@ int main() {
     20,
     0,
     0,
-    0
+    0,
+    ""
   };
   ad.push_back(a9);
   s = get_consensus_allele(ad, 0, 0, 'N');

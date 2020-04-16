@@ -16,9 +16,8 @@ ret_t get_consensus_allele(std::vector<allele> ad, uint8_t min_qual, double thre
   std::string qual;
   char n;
   uint8_t max_len = get_longest_insertion(ad);
-  int i =0;
   std::vector<allele>::iterator it;
-  for (i = 0; i < max_len; ++i) {
+  for (uint i = 0; i < max_len; ++i) {
     n = 0;
     q = 0;
     for (it = ad.begin(); it != ad.end(); ++it) {
@@ -114,8 +113,8 @@ int call_consensus_from_plup(std::istream &cin, std::string out_file, uint8_t mi
       if (mdepth == 0)
 	bases_zero_depth += 1;
       if(min_coverage_flag){
-      if(vw!=NULL)
-	vw->write_record_below_threshold(pos, region, ref);
+	if(vw!=NULL)
+	  vw->write_record_below_threshold(pos, region);
 	fout << gap;
 	tmp_qout << '!';
       }
