@@ -113,8 +113,8 @@ int call_consensus_from_plup(std::istream &cin, std::string out_file, uint8_t mi
       if (mdepth == 0)
 	bases_zero_depth += 1;
       if(min_coverage_flag){
-	if(vw!=NULL)
-	  vw->write_record_below_threshold(pos, region);
+	// if(vw!=NULL)
+	//   vw->write_record_below_threshold(pos, region);
 	fout << gap;
 	tmp_qout << '!';
       }
