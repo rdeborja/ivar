@@ -90,7 +90,6 @@ int call_variants_from_plup(std::istream &cin, std::string out_file, uint8_t min
       continue;
     }
     ad = update_allele_depth(ref, bases, qualities, min_qual);
-    print_allele_depths(ad);
     if(ad.size() == 0){
       line_stream.clear();
       continue;
