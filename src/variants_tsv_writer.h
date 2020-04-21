@@ -39,12 +39,7 @@ const std::string hdr = "REGION"
   "\tALT_FREQ"
   "\tTOTAL_DP"
   "\tPVAL"
-  "\tPASS"
-  "\tGFF_FEATURE"
-  "\tREF_CODON"
-  "\tREF_AA"
-  "\tALT_CODON"
-  "\tALT_AA";
+  "\tPASS";
   const std::string delim = "\t";
   std::ofstream fout;
   ref_antd *refa;
