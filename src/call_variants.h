@@ -11,6 +11,7 @@
 
 #include "allele_functions.h"
 #include "ref_seq.h"
+#include "variants_tsv_writer.h"
 
 #ifndef call_variants
 #define call_variants
