@@ -16,7 +16,7 @@ char* ref_antd::get_codon(int64_t pos, std::string region, gff3_feature feature)
   int64_t edit_pos = feature.get_edit_position(), codon_start_pos;
   std::string edit_sequence = feature.get_edit_sequence();
   int64_t edit_sequence_size = edit_sequence.size();
-  char *codon = new char[3];
+  char *codon = new char[4];
   int i;
   int64_t edit_offset = 0;
   if(pos > edit_pos + edit_sequence_size && edit_pos != -1){
@@ -35,6 +35,7 @@ char* ref_antd::get_codon(int64_t pos, std::string region, gff3_feature feature)
       codon[i] = *(seq + codon_start_pos + i - edit_offset);
     }
   }
+  codon[3] = '\0';
   return codon;
 }
 
@@ -44,7 +45,7 @@ char* ref_antd::get_codon(int64_t pos, std::string region, gff3_feature feature,
   int64_t edit_pos = feature.get_edit_position(), codon_start_pos;
   std::string edit_sequence = feature.get_edit_sequence();
   int64_t edit_sequence_size = edit_sequence.size();
-  char *codon = new char[3];
+  char *codon = new char[4];
   int i;
   int64_t edit_offset = 0, alt_pos = pos;
   if(pos > edit_pos + edit_sequence_size && edit_pos != -1){
@@ -68,6 +69,7 @@ char* ref_antd::get_codon(int64_t pos, std::string region, gff3_feature feature,
   }
   alt_pos += edit_offset;
   codon[alt_pos - 1 - codon_start_pos] = alt;
+  codon[3] = '\0';
   return codon;
 }
 
@@ -101,26 +103,32 @@ ref_antd::ref_antd(std::string ref_path, std::string gff_path){
   this->add_gff(gff_path);
 }
 
-int ref_antd::codon_aa_stream(std::string region, std::ostringstream &line_stream, std::ofstream &fout, int64_t pos, char alt){
+bool ref_antd::is_empty(){
+  return (this->fai == NULL) && (this->gff.empty());
+}
+
+std::vector<std::vector<std::string>> ref_antd::codon_aa(std::string region, int64_t pos, char alt){
   std::vector<gff3_feature> features = gff.query_features(pos, "CDS");
+  std::vector<std::vector<std::string>> codon_aa_feats;
   if(features.size() == 0){	// No matching CDS
-    fout << line_stream.str() << "NA\tNA\tNA\tNA\tNA" << std::endl;
-    return 0;
+    return codon_aa_feats;
   }
   std::vector<gff3_feature>::iterator it;
-  char *ref_codon, *alt_codon;
+  char *ref_codon = new char[3], *alt_codon = new char[3];
   for(it = features.begin(); it != features.end(); it++){
-    fout << line_stream.str();
-    fout << it->get_attribute("ID") << "\t";
+    std::vector<std::string> codon_aa_feat;
+    codon_aa_feat.push_back(it->get_attribute("ID"));
     ref_codon = this->get_codon(pos, region, *it);
-    fout << ref_codon[0] << ref_codon[1] << ref_codon[2] << "\t";
-    fout << codon2aa(ref_codon[0], ref_codon[1], ref_codon[2]) << "\t";
+    codon_aa_feat.push_back(std::string(ref_codon));
+    codon_aa_feat.push_back(std::string(1, codon2aa(ref_codon[0], ref_codon[1], ref_codon[2])));
     alt_codon = this->get_codon(pos, region, *it, alt);
-    fout << alt_codon[0] << alt_codon[1] << alt_codon[2] << "\t";
-    fout << codon2aa(alt_codon[0], alt_codon[1], alt_codon[2]);
-    fout << std::endl;
+    codon_aa_feat.push_back(std::string(alt_codon));
+    codon_aa_feat.push_back(std::string(1, codon2aa(alt_codon[0], alt_codon[1], alt_codon[2])));
+    codon_aa_feats.push_back(codon_aa_feat);
   }
-  return 0;
+  delete[] ref_codon;
+  delete[] alt_codon;
+  return codon_aa_feats;
 }
 
 std::vector<gff3_feature> ref_antd::get_gff_features(){

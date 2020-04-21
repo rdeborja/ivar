@@ -1,6 +1,7 @@
 #include <iostream>
 #include <sstream>
 #include <fstream>
+#include <vector>
 
 #include <htslib/faidx.h>
 #include "parse_gff.h"
@@ -18,10 +19,11 @@ public:
   char get_base(int64_t pos, std::string region);
   int add_gff(std::string path);
   int add_seq(std::string path);
-  int codon_aa_stream(std::string region, std::ostringstream &line_stream, std::ofstream &fout, int64_t pos, char alt);
+  std::vector<std::vector<std::string>> codon_aa(std::string region, int64_t pos, char alt);
   char* get_codon(int64_t pos, std::string region, gff3_feature feature);
   char* get_codon(int64_t pos, std::string region, gff3_feature feature, char alt);
   std::vector<gff3_feature> get_gff_features();
+  bool is_empty();
 
 private:
   char *seq;
