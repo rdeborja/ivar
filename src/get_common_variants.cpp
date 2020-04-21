@@ -19,11 +19,12 @@ const std::string fields[NUM_FIELDS] = {"REGION",
 			      "REF_CODON",
 			      "REF_AA",
 			      "ALT_CODON",
-			      "ALT_AA"};
+			      "ALT_AA"
+};
 
 const std::string na_tab_delimited_str = "NA\tNA\tNA\tNA\tNA\tNA\tNA\tNA\tNA\tNA";
 
-int read_variant_file(std::ifstream &fin, unsigned int file_number, std::map<std::string, unsigned int> &counts, std::map<std::string, std::string> &file_tab_delimited_str){
+int read_variant_file(std::ifstream &fin, unsigned int file_number, std::map<std::string, unsigned int> &counts, std::map<std::string, std::string> &file_tab_delimited_str, int &num_fields){
   unsigned int ctr;
   std::string line, cell, tab_delimited_key, tab_delimited_val;
   std::stringstream line_stream;
@@ -38,6 +39,7 @@ int read_variant_file(std::ifstream &fin, unsigned int file_number, std::map<std
     }
     ctr++;
   }
+  num_fields = ctr;
   line_stream.clear();
   while (std::getline(fin, line)){
     line_stream << line;
@@ -94,9 +96,10 @@ int common_variants(std::string out, double min_threshold, char* files[], unsign
   std::ifstream fin;
   std::map<std::string, unsigned int> counts = std::map<std::string, unsigned int>();
   std::map<std::string, std::string> file_tab_delimited_str = std::map<std::string, std::string>();
+  int num_fields;
   for (i = 0; i < nfiles; ++i) {
     fin.open(files[i]);
-    if(read_variant_file(fin, i, counts, file_tab_delimited_str) != 0){
+    if(read_variant_file(fin, i, counts, file_tab_delimited_str, num_fields) != 0){
       std::cout << "Header format of "  << files[i]  << " did not match!";
       std::cout << " Please use files generated using \"ivar variants\" command." << std::endl;
     }
@@ -107,8 +110,10 @@ int common_variants(std::string out, double min_threshold, char* files[], unsign
   for (i = 0; i < 4; ++i) {
     fout << fields[i] << "\t";
   }
-  for (i = 14; i < 19; ++i) {
-    fout << fields[i] << "\t";
+  if (num_fields == 19) {
+    for (i = 14; i < 19; ++i) {
+      fout << fields[i] << "\t";
+    }    
   }
   for (i = 0; i < nfiles; ++i) {
     for (j = 4; j < 14; ++j) {

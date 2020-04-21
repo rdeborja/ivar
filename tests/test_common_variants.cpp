@@ -10,10 +10,11 @@ int main() {
   std::ifstream fin;
   std::map<std::string, std::string> file_tab_delimited_str;
   std::map<std::string, unsigned int> counts;
+  int num_fields;
   // Read all files
   for (int i = 0; i < 3; ++i) {
     fin.open(files[i]);
-    read_variant_file(fin, i, counts, file_tab_delimited_str);
+    read_variant_file(fin, i, counts, file_tab_delimited_str, num_fields);
     fin.close();
   }
   std::map<std::string, std::string>::iterator it = file_tab_delimited_str.begin();
@@ -62,7 +63,69 @@ int main() {
       num_success = -1;
     }
     count_it++;
-  }  
+  }
+
+  // test without aa
+  files[0] = "../data/test_min.1.tsv";
+  files[1] = "../data/test_min.2.tsv";
+  files[2] = "../data/test_min.3.tsv";
+  file_tab_delimited_str.clear();
+  counts.clear();
+  num_fields = 0;
+  // Read all files
+  for (int i = 0; i < 3; ++i) {
+    fin.open(files[i]);
+    read_variant_file(fin, i, counts, file_tab_delimited_str, num_fields);
+    fin.close();
+  }
+  it = file_tab_delimited_str.begin();
+  // Test tab delimited strings for test.1.tsv.
+  keys[0] = "test\t42\tG\tT\t0";
+  keys[1] = "test\t69\tT\tG\t0";
+  keys[2] = "test\t320\tA\tT\t2";
+  values[0] = "0\t0\t0\t1\t0\t49\t1\t1\t1\tFALSE";
+  values[1] = "1\t0\t57\t1\t0\t53\t0.5\t2\t0.666667\tFALSE";
+  values[2] = "1\t1\t35\t1\t1\t46\t0.5\t2\t0.666667\tFALSE";
+  ctr = 0;
+  while(it!=file_tab_delimited_str.end() && ctr < 2){
+    // Check if key in map
+    if(file_tab_delimited_str.find(keys[ctr]) == file_tab_delimited_str.end()){
+      std::cout << "Key not found: " << keys[ctr] << std::endl;
+      num_success = -1;
+    } else {
+      ctr++;
+    }
+    if((it->first).compare(keys[ctr]) == 0 && (it->second).compare(values[ctr]) != 0){ // Check if value of key matches
+      std::cout << it->first << ": " << it->second << std::endl;
+      std::cout << keys[ctr] << ": " << values[ctr] << " -> Correct" << std::endl;
+      num_success = -1;
+    }
+    it++;
+  }
+  // Test counts
+  count_it = counts.begin();
+  count_keys[0] = "test\t42\tG\tT\t";
+  count_keys[1] = "test\t320\tA\tT\t";
+  count_keys[2] ="test\t365\tA\tT\t";
+  count_values[0] = 2;
+  count_values[1] = 2;
+  count_values[2] = 3;
+  ctr = 0;
+  while(count_it!=counts.end() && ctr < 3){
+    if(counts.find(count_keys[ctr]) == counts.end()){
+      std::cout << "Key not found: " << count_keys[ctr] << std::endl;
+      num_success = -1;
+    } else {
+      ctr++;
+    }
+    if((count_it->first).compare(count_keys[ctr]) == 0 && count_it->second != count_values[ctr]){
+      std::cout << count_it->first << ": " << count_it->second << std::endl;
+      std::cout << count_keys[ctr] << ": " << count_values[ctr] << " -> Correct" << std::endl;
+      num_success = -1;
+    }
+    count_it++;
+  }
+
   if(num_success == 0)
     return 0;
   return -1;
