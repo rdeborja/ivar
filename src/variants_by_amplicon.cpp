@@ -112,6 +112,8 @@ void var_by_amp::print_graph(){
   for (std::vector<allele*>::iterator it = alleles.begin(); it != alleles.end(); ++it) {
     std::cout << this->fwd_primers.at(it-alleles.begin())->get_name() << ": " << this->rev_primers.at(it-alleles.begin())->get_name() << std::endl;
     std::cout << (*it)->nuc << ": " << (*it)->depth << std::endl;
+    if((*it)->deleted_bases.size() > 0)
+      std::cout << "Deleted bases:" << (*it)->deleted_bases.size() << std::endl;
   }
   std::cout << std::endl;
   if(this->next != NULL){
