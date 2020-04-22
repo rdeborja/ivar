@@ -49,11 +49,20 @@ var_by_amp* var_by_amp::get_or_add_node(uint64_t p){
     return this;
   var_by_amp *cur = this;
   if(p < this->pos){
-    while(p != cur->get_pos()){	// Prev nodes should never be NULL
+    while(p != cur->get_pos()){
       if(cur->prev == NULL){
 	var_by_amp* n = new var_by_amp(p);
 	cur->add_prev(n);
 	n->next = cur;
+	return n;
+      }
+      if(cur->prev->get_pos() < p){ // If prev position missing, insert node
+	var_by_amp* n = new var_by_amp(p);
+	var_by_amp *tmp = cur->prev;
+	cur->add_prev(n);
+	n->next = cur;
+	n->prev = tmp;
+	tmp->add_next(n);
 	return n;
       }
       cur = cur->prev;
@@ -64,6 +73,15 @@ var_by_amp* var_by_amp::get_or_add_node(uint64_t p){
 	var_by_amp* n = new var_by_amp(p);
 	cur->add_next(n);
 	n->prev = cur;
+	return n;
+      }
+      if(cur->next->get_pos() > p){ // If next position greater than pos, insert node
+	var_by_amp* n = new var_by_amp(p);
+	var_by_amp *tmp = cur->next;
+	cur->add_next(n);
+	n->next = tmp;
+	n->prev = cur;
+	tmp->add_prev(n);
 	return n;
       }
       cur = cur->next;
@@ -105,6 +123,10 @@ void var_by_amp::print_graph(){
 
 var_by_amp* var_by_amp::get_prev(){
   return this->prev;
+}
+
+var_by_amp* var_by_amp::get_next(){
+  return this->next;
 }
 
 var_by_amp::~var_by_amp(){

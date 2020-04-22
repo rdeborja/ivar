@@ -25,6 +25,7 @@ public:
   void add_next(var_by_amp *n);
   void add_prev(var_by_amp *p);
   var_by_amp* get_prev();
+  var_by_amp* get_next();
   var_by_amp* get_node(uint64_t pos);
   var_by_amp* get_or_add_node(uint64_t pos);
   void print_graph();
