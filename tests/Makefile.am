@@ -2,8 +2,8 @@ LIBS = -lhts -lz -lpthread
 
 CXXFLAGS = -g -std=c++11 -Wall -Wextra -Werror
 
-TESTS = check_primer_trim check_quality_trim check_consensus check_allele_depth check_consensus_threshold check_consensus_min_depth check_primer_bed check_getmasked check_removereads check_variants check_common_variants check_unpaired_trim check_primer_trim_edge_cases check_vcf_writer
-check_PROGRAMS = check_primer_trim check_quality_trim check_consensus check_allele_depth check_consensus_threshold check_consensus_min_depth check_primer_bed check_getmasked check_removereads check_variants check_common_variants check_unpaired_trim check_primer_trim_edge_cases check_vcf_writer
+TESTS = check_primer_trim check_quality_trim check_consensus check_allele_depth check_consensus_threshold check_consensus_min_depth check_primer_bed check_getmasked check_removereads check_variants check_common_variants check_unpaired_trim check_primer_trim_edge_cases check_vcf_writer check_variants_by_amp
+check_PROGRAMS = check_primer_trim check_quality_trim check_consensus check_allele_depth check_consensus_threshold check_consensus_min_depth check_primer_bed check_getmasked check_removereads check_variants check_common_variants check_unpaired_trim check_primer_trim_edge_cases check_vcf_writer check_variants_by_amp
 
 check_primer_trim_SOURCES = test_primer_trim.cpp ../src/trim_primer_quality.cpp ../src/primer_bed.cpp
 check_quality_trim_SOURCES = check_quality_trim.cpp ../src/trim_primer_quality.cpp ../src/primer_bed.cpp
@@ -19,3 +19,4 @@ check_removereads_SOURCES = test_removereads.cpp ../src/remove_reads_from_amplic
 check_unpaired_trim_SOURCES = test_unpaired_trim.cpp ../src/trim_primer_quality.cpp ../src/primer_bed.cpp
 check_primer_trim_edge_cases_SOURCES = test_primer_trim_edge_cases.cpp ../src/trim_primer_quality.cpp ../src/primer_bed.cpp
 check_vcf_writer_SOURCES = test_vcf_writer.cpp ../src/vcf_writer.cpp ../src/allele_functions.cpp
+check_variants_by_amp_SOURCES = test_variants_by_amp.cpp ../src/allele_functions.cpp ../src/primer_bed.cpp ../src/variants_by_amplicon.cpp
