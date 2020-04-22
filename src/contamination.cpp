@@ -50,30 +50,37 @@ var_by_amp* get_alleles_per_read(bam1_t *aln, var_by_amp *v, primer *fwd, primer
 	    indel += seq_nt16_str[bam_seqi(seq, ql+ctr)];
 	    ctr++;
 	  }
-	  v = v->get_or_add_node(pos);
-	  a = v->get_or_add_allele(indel, "", fwd, rev);
-	  a->depth += 1;
+	  if(bam_cigar_op(cigar[i+1]) != BAM_CSOFT_CLIP){
+	    v = v->get_or_add_node(pos);
+	    a = v->get_or_add_allele(indel, "", fwd, rev);
+	    a->depth += 1;
+	  }
+	  pos++;
 	  ql += bam_cigar_oplen(cigar[i+1]);
 	  i++;
 	} else if (!(bam_cigar_type(cigar[i+1]) & 1) && (bam_cigar_type(cigar[i+1]) & 2)){ // Only ref consuming
 	  indel.clear();
 	  indel.assign(1, seq_nt16_str[bam_seqi(seq, ql+ctr)]);
+	  ctr = 0;
 	  v = v->get_or_add_node(pos);
 	  a = v->get_or_add_allele(indel, std::string(bam_cigar_oplen(cigar[i+1]), 'N'), fwd, rev);
 	  a->depth += 1;
+	  pos += bam_cigar_oplen(cigar[i+1]) + 1; // Account for incrementing last base of previous cigar
+	  ql += len;				  // Add query length for previous cigar
 	  i++;
-	  pos += bam_cigar_oplen(cigar[i+1]);
 	} else {
 	  v = v->get_or_add_node(pos);
 	  a = v->get_or_add_allele(std::string(1, seq_nt16_str[bam_seqi(seq, ql+ctr)]), "", fwd, rev);
 	  a->depth += 1;
 	  pos++;
+	  ql += len;
 	}
       } else {
 	v = v->get_or_add_node(pos);
 	a = v->get_or_add_allele(std::string(1, seq_nt16_str[bam_seqi(seq, ql+ctr)]), "", fwd, rev);
 	a->depth += 1;
 	pos++;
+	ql+=len;
       }
     } else if(bam_cigar_type(cigar[i]) & 1){
       ql += len;
@@ -87,10 +94,10 @@ var_by_amp* get_alleles_per_read(bam1_t *aln, var_by_amp *v, primer *fwd, primer
 
 int main()
 {
-  std::string bed = "../data/test.bed";
-  std::string bam = "../data/test.sim.sorted.bam";
+  std::string bed = "../data/amp_sim/amp_sim.bed";
+  std::string bam = "../data/amp_sim/amp_sim.sorted.bam";
   std::vector<primer> primers = populate_from_file(bed);
-  populate_pair_indices(primers, "../data/pair_information.tsv");
+  populate_pair_indices(primers, "../data/amp_sim/pair_information.tsv");
   samFile *in = hts_open(bam.c_str(), "r");
   bam_hdr_t *header = sam_hdr_read(in);
   hts_idx_t *idx = sam_index_load(in, bam.c_str());
@@ -104,16 +111,19 @@ int main()
     identify_amp(primers, aln->core.pos, bam_endpos(aln), fwd, rev);
     if(fwd.size() == 0 || rev.size() == 0 || ((aln->core.flag&BAM_FUNMAP) != 0))
       continue;
-    std::cout << bam_get_qname(aln) << std::endl;
     fwd_max_end = get_max_end(fwd);
     rev_min_start = get_min_start(rev);
     cur = get_alleles_per_read(aln, cur, &fwd_max_end, &rev_min_start);
   }
-  while(cur->get_prev() != NULL){
-    cur = cur->get_prev();
+  if(cur == NULL){
+    std::cout << "No reads from amplicons found" << std::endl;
+  } else {
+    while(cur->get_prev() != NULL){
+      cur = cur->get_prev();
+    }
+    cur->print_graph();
+    delete cur;
   }
-  cur->print_graph();
-  delete cur;
   hts_itr_destroy(iter);
   hts_idx_destroy(idx);
   bam_destroy1(aln);
