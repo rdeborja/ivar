@@ -6,6 +6,10 @@ var_by_amp::var_by_amp(uint64_t pos){
   this->next = NULL;
 }
 
+var_by_amp::~var_by_amp(){
+
+}
+
 allele* var_by_amp::get_allele(std::string nuc, std::string deleted_bases, primer *fwd, primer*rev){
   for (std::vector<allele*>::iterator it = this->alleles.begin(); it != this->alleles.end(); ++it) {
     if((*it)->nuc.compare(nuc) == 0 && (*it)->deleted_bases.compare(deleted_bases) == 0 && this->fwd_primers.at(it - this->alleles.begin())->get_indice() == fwd->get_indice() && this->rev_primers.at(it - this->alleles.begin())->get_indice() == rev->get_indice())
@@ -108,14 +112,14 @@ allele* var_by_amp::get_or_add_allele(std::string nuc, std::string deleted_bases
 }
 
 void var_by_amp::print_graph(){
-  std::cout << this->pos << std::endl;
   for (std::vector<allele*>::iterator it = alleles.begin(); it != alleles.end(); ++it) {
-    std::cout << this->fwd_primers.at(it-alleles.begin())->get_name() << ": " << this->rev_primers.at(it-alleles.begin())->get_name() << std::endl;
-    std::cout << (*it)->nuc << ": " << (*it)->depth << std::endl;
+    std::cout << this->pos << this->delim;
+    std::cout << this->fwd_primers.at(it-alleles.begin())->get_name() << this->delim << this->rev_primers.at(it-alleles.begin())->get_name() << this->delim;
+    std::cout << (*it)->nuc << this->delim;
     if((*it)->deleted_bases.size() > 0)
-      std::cout << "Deleted bases:" << (*it)->deleted_bases.size() << std::endl;
+      std::cout << (*it)->deleted_bases.size() << this->delim;
+						  std::cout << (*it)->depth << std::endl;
   }
-  std::cout << std::endl;
   if(this->next != NULL){
     this->next->print_graph();
   } else {
@@ -129,8 +133,4 @@ var_by_amp* var_by_amp::get_prev(){
 
 var_by_amp* var_by_amp::get_next(){
   return this->next;
-}
-
-var_by_amp::~var_by_amp(){
-  
 }
