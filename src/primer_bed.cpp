@@ -222,3 +222,15 @@ primer get_max_end(std::vector<primer> primers){
   auto minmax_start = std::minmax_element(primers.begin(), primers.end(), [] (primer lhs, primer rhs) {return lhs.get_end() < rhs.get_end();});
   return *(minmax_start.second);
 }
+
+primer* get_min_start_(std::vector<primer*> primers){
+  std::vector<primer>::iterator it;
+  auto minmax_start = std::minmax_element(primers.begin(), primers.end(), [] (primer *lhs, primer *rhs) {return lhs->get_start() < rhs->get_start();});
+  return *(minmax_start.first);
+}
+
+
+primer* get_max_end_(std::vector<primer*> primers){
+  auto minmax_start = std::minmax_element(primers.begin(), primers.end(), [] (primer *lhs, primer *rhs) {return lhs->get_end() < rhs->get_end();});
+  return *(minmax_start.second);
+}
