@@ -15,6 +15,7 @@
 #include "get_masked_amplicons.h"
 #include "suffix_tree.h"
 #include "get_common_variants.h"
+#include "contamination.h"
 
 #include "version.h"
 
@@ -52,6 +53,7 @@ void print_usage(){
     "      consensus       Call consensus from aligned BAM file\n"
     "      getmasked       Detect primer mismatches and get primer indices for the amplicon to be masked\n"
     "    removereads       Remove reads from trimmed BAM file\n"
+    "             qc       Perform quality control\n"
     "        version       Show version information\n"
     "\n"
     "To view detailed usage for each command type `ivar <command>` \n";
@@ -141,6 +143,16 @@ void print_getmasked_usage(){
     "           -p    (Required) Prefix for the output text file\n";
 }
 
+void print_qc_usage(){
+  std::cout <<
+    "Usage: ivar qc -i <input.trimmed.bam> -f <primer_pairs.tsv> -b <primers.bed> [-q <min-quality>]\n\n"
+    "Input Options    Description\n"
+    "           -i    (Required) Input BAM file  trimmed with ‘ivar trim’.\n"
+    "           -b    (Required) BED file with primer positions\n"
+    "           -f    (Required) Primer pair information file containing left and right primer names for the same amplicon separated by a tab\n"
+    "           -q    Minimum quality score threshold to count base (Default: 20)\n";
+}
+
 void print_trimadapter_usage(){
   std::cout <<
     "NOTE: EXPERIMENTAL FEATURE\n"
@@ -153,6 +165,7 @@ void print_trimadapter_usage(){
     "           -p    (Required) Prefix of output fastq files\n";
 }
 
+
 void print_version_info(){
   std::cout << "iVar version " << VERSION << std::endl <<
     "\nPlease raise issues and bug reports at https://github.com/andersen-lab/ivar/\n\n";
@@ -164,6 +177,7 @@ static const char *consensus_opt_str = "p:q:t:m:n:kh?";
 static const char *removereads_opt_str = "i:p:t:b:h?";
 static const char *filtervariants_opt_str = "p:t:f:h?";
 static const char *getmasked_opt_str = "i:b:f:p:h?";
+static const char *qc_opt_str = "i:b:q:f:h?";
 static const char *trimadapter_opt_str = "1:2:p:a:h?";
 
 std::string get_filename_without_extension(std::string f, std::string ext){
@@ -487,6 +501,36 @@ int main(int argc, char* argv[]){
     }
     g_args.prefix = get_filename_without_extension(g_args.prefix,".txt");
     res = get_primers_with_mismatches(g_args.bed, g_args.bam, g_args.prefix, g_args.primer_pair_file);
+  } else if(cmd.compare("qc") == 0){
+    opt = getopt( argc, argv, qc_opt_str);
+    g_args.min_qual = 20;
+    while( opt != -1 ) {
+      switch( opt ) {
+      case 'i':
+	g_args.bam = optarg;
+	break;
+      case 'b':
+	g_args.bed = optarg;
+	break;
+      case 'f':
+	g_args.primer_pair_file = optarg;
+	break;
+      case 'q':
+	g_args.min_qual = std::stoi(optarg);
+	break;
+      case 'h':
+      case '?':
+	print_qc_usage();
+	return 0;
+	break;
+      }
+      opt = getopt( argc, argv, qc_opt_str);
+    }
+    if(g_args.bed.empty() || g_args.bam.empty() || g_args.primer_pair_file.empty()){
+      print_qc_usage();
+      return -1;
+    }
+    res = identify_contamination(g_args.bed, g_args.bam, g_args.primer_pair_file, g_args.min_qual);
   } else if (cmd.compare("trimadapter") == 0){
     opt = getopt( argc, argv, trimadapter_opt_str);
     while( opt != -1 ) {
