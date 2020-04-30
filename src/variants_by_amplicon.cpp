@@ -48,6 +48,26 @@ void var_by_amp::add_prev(var_by_amp *p){
   this->prev = p;
 }
 
+var_by_amp* var_by_amp::get_node(uint64_t p){
+  if(p == this->pos)
+    return this;
+  var_by_amp *cur = this;
+  if(p < this->pos){
+    while(p != cur->get_pos()){
+      if(cur->prev == NULL)
+	return NULL;
+      cur = cur->prev;
+    }
+  } else {
+    while(p!=cur->get_pos()){
+      if(cur->next == NULL)
+	return NULL;
+      cur = cur->next;
+    }
+  }
+  return cur;
+}
+
 var_by_amp* var_by_amp::get_or_add_node(uint64_t p){
   if(p == this->pos)
     return this;
@@ -111,7 +131,7 @@ allele* var_by_amp::get_or_add_allele(std::string nuc, std::string deleted_bases
   return a;
 }
 
-void var_by_amp::print_graph(){
+void var_by_amp::print_graph(bool recurse = true){
   for (std::vector<allele*>::iterator it = alleles.begin(); it != alleles.end(); ++it) {
     std::cout << this->pos << this->delim;
     std::cout << this->fwd_primers.at(it-alleles.begin())->get_name() << this->delim << this->rev_primers.at(it-alleles.begin())->get_name() << this->delim;
@@ -120,10 +140,26 @@ void var_by_amp::print_graph(){
       std::cout << (*it)->deleted_bases.size() << this->delim;
 						  std::cout << (*it)->depth << std::endl;
   }
-  if(this->next != NULL){
-    this->next->print_graph();
-  } else {
-    std::cout << "END" << std::endl;
+  if(recurse){
+    if(this->next != NULL){
+      this->next->print_graph();
+    }
+  }
+}
+
+void var_by_amp::print_graph(double min_freq){
+  uint32_t total_depth = this->get_depth();
+  double freq;
+  for (std::vector<allele*>::iterator it = this->alleles.begin(); it != this->alleles.end(); ++it) {
+    freq = (*it)->depth/total_depth;
+    if(freq < min_freq)
+      continue;
+    std::cout << this->pos << this->delim;
+    std::cout << this->fwd_primers.at(it-alleles.begin())->get_name() << this->delim << this->rev_primers.at(it-alleles.begin())->get_name() << this->delim;
+    std::cout << (*it)->nuc << this->delim;
+    if((*it)->deleted_bases.size() > 0)
+      std::cout << (*it)->deleted_bases.size() << this->delim;
+						  std::cout << (*it)->depth << std::endl;
   }
 }
 
@@ -133,4 +169,60 @@ var_by_amp* var_by_amp::get_prev(){
 
 var_by_amp* var_by_amp::get_next(){
   return this->next;
+}
+
+uint32_t var_by_amp::get_depth(){
+  uint32_t depth = 0;
+  std::vector<allele*> a = this->get_alleles();
+  for (std::vector<allele*>::iterator it = a.begin(); it != a.end(); ++it) {
+    depth += (*it)->depth;
+  }
+  return depth;
+}
+
+uint get_count_of_alleles(allele *a, std::vector<allele*> _alleles){
+  int count = 0;
+  for (std::vector<allele*>::iterator it = _alleles.begin(); it != _alleles.end(); ++it) {
+    if(**it == *a)
+      count += 1;
+  }
+  return count;
+}
+
+int find_allele(allele *a, std::vector<allele*> _alleles){
+  for (std::vector<allele*>::iterator it = _alleles.begin(); it != _alleles.end(); ++it) {
+    if(**it == *a)
+      return it-_alleles.begin();
+  }
+  return -1;
+}
+
+void var_by_amp::get_distinct_variants_amp(double min_freq, std::vector<allele*> &unique_alleles, std::vector<uint32_t> &counts){
+  unique_alleles.clear();
+  counts.clear();
+  std::vector<allele*> a = this->get_alleles();
+  std::vector<uint32_t> counts_per_amplicon;
+  uint32_t count, total_depth = this->get_depth();
+  for (uint i = 0; i < a.size(); ++i) {
+    if(((a.at(i)->depth)/(double) total_depth) < min_freq)
+      continue;
+    if(find_allele(a.at(i), unique_alleles) != -1)
+      continue;
+    count = get_count_of_alleles(a.at(i), a);
+    counts.push_back(count);
+    unique_alleles.push_back(a.at(i));
+  }
+}
+
+std::vector<allele*> var_by_amp::get_alleles_above_freq(double min_freq){
+  double freq;
+  std::vector<allele*> v;
+  uint32_t total_depth = this->get_depth();
+  std::vector<allele*> a = this->get_alleles();
+  for (std::vector<allele*>::iterator it = a.begin(); it != a.end(); ++it) {
+    freq = ((*it)->depth)/(double)total_depth;
+    if(freq >= min_freq)
+      v.push_back(*it);
+  }
+  return v;
 }

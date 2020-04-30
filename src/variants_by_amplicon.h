@@ -29,8 +29,12 @@ public:
   var_by_amp* get_next();
   var_by_amp* get_node(uint64_t pos);
   var_by_amp* get_or_add_node(uint64_t pos);
-  void print_graph();
+  void print_graph(bool recurse);
+  void print_graph(double min_freq);
   uint64_t get_pos();
+  uint32_t get_depth();
+  std::vector<allele*> get_alleles_above_freq(double min_freq);
+  void get_distinct_variants_amp(double min_freq, std::vector<allele*> &unique_alleles, std::vector<uint32_t> &counts);
 };
 
 #endif
