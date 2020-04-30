@@ -234,3 +234,33 @@ primer* get_max_end_(std::vector<primer*> primers){
   auto minmax_start = std::minmax_element(primers.begin(), primers.end(), [] (primer *lhs, primer *rhs) {return lhs->get_end() < rhs->get_end();});
   return *(minmax_start.second);
 }
+
+std::vector<std::vector<uint32_t>> get_overlap_pos(std::vector<primer> primers){
+  std::vector<std::vector<uint32_t>> v;
+  uint32_t start = 0, end = 0, start2 = 0, end2= 0, overlap_start = 0, overlap_end = 0;
+  std::vector<uint32_t> tmp;
+  uint32_t overlap_num = 0;
+  for (std::vector<primer>::iterator it = primers.begin(); it!= primers.end(); ++it) {
+    if(it->get_strand() == '-' || it->get_pair_indice()==-1)
+      continue;
+    start = it->get_start();
+    end = primers.at(it->get_pair_indice()).get_end();
+    for (std::vector<primer>::iterator it2 = primers.begin(); it2 != primers.end(); ++it2) {
+      if(it2->get_strand() == '-' || it2->get_indice() == it->get_indice() || it2->get_pair_indice()==-1)
+	continue;
+      start2 = it2->get_start();
+      end2 = primers.at(it2->get_pair_indice()).get_end();
+      if ((start2 >= start && start2 <= end)){ // Overlap of start region
+	overlap_start = std::max(start, start2);
+	overlap_end = std::min(end, end2);
+	tmp.push_back(overlap_start);
+	tmp.push_back(overlap_end);
+	overlap_num += overlap_end - overlap_start;
+	v.push_back(tmp);
+	tmp.clear();
+      }
+    }
+  }
+  std::cout << "Found " << overlap_num << " bases covered by at least two amplicons";
+  return v;
+}

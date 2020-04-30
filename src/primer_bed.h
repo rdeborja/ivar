@@ -54,5 +54,6 @@ primer get_min_start(std::vector<primer> primers);
 primer get_max_end(std::vector<primer> primers);
 primer* get_min_start_(std::vector<primer*> primers);
 primer* get_max_end_(std::vector<primer*> primers);
+std::vector<std::vector<uint32_t>> get_overlap_pos(std::vector<primer> primers);
 
 #endif
