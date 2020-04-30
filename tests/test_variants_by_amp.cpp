@@ -47,6 +47,17 @@ int main()
     0,
     ""
   };
+  allele a2 = {
+    "T",
+    1,
+    0,
+    0,
+    0,
+    0,
+    0,
+    ""
+  };
+  
   primer *fwd = new primer();
   fwd->set_name("Fwd1");
   fwd->set_start(5);
@@ -97,6 +108,15 @@ int main()
   std::cout << b->nuc << ": " << b->depth << std::endl;
   success += (b->depth == 2) == 0;
 
-  v->print_graph();
+  std::vector<allele *> unique_alleles;
+  std::vector<uint32_t> counts;
+  v->get_distinct_variants_amp(0.01, unique_alleles, counts);
+  success += (unique_alleles.size() == 2) ? 0 : 1;
+  success += (unique_alleles.at(0)->nuc.compare(a.nuc) == 0) ? 0 : 1;
+  success += (counts.at(0) == 1) ? 0 : 1;
+  success += (unique_alleles.at(1)->nuc.compare(a2.nuc) == 0) ? 0 : 1;
+  success += (counts.at(1) == 3) ? 0 : 1;
+
+  v->print_graph(true);
   return (success == 0) ? 0 : -1;
 }
