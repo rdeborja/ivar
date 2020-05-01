@@ -102,7 +102,9 @@ var_by_amp* get_alleles_per_read(bam1_t *aln, var_by_amp *v, primer *fwd, primer
   return v;
 }
 
-int identify_contamination(std::string bed, std::string bam, std::string pairs_file, uint8_t min_qual){
+int identify_contamination(std::string bed, std::string bam, std::string pairs_file, std::string prefix, uint8_t min_qual){
+  prefix += ".bam";
+  BGZF *out = bgzf_open(prefix.c_str(), "w");
   std::vector<primer> primers = populate_from_file(bed);
   populate_pair_indices(primers, pairs_file);
   samFile *in = hts_open(bam.c_str(), "r");
@@ -126,22 +128,40 @@ int identify_contamination(std::string bed, std::string bam, std::string pairs_f
     sam_close(in);
     std::cout << "Unable to open BAM header." << std::endl;
   }
+  if(bam_hdr_write(out, header) < 0){
+    std::cout << "Unable to write BAM header to path." << std::endl;
+    sam_close(in);
+    return -1;
+  }  
   hts_itr_t *iter = NULL;
   std::vector<primer*> fwd, rev;
   primer *fwd_max_end, *rev_min_start;
   iter  = sam_itr_querys(idx, header, header->target_name[0]);
   var_by_amp *cur= NULL;
   bam1_t *aln = bam_init1();
-  double min_freq = 0.03;
+  double min_freq = 0.3;
+  std::cout << "Reads overlapping multiple amplicons: " << std::endl;
   std::vector<std::vector<uint32_t>> overlap = get_overlap_pos(primers);
   while(sam_itr_next(in, iter, aln) >= 0) {
     identify_amp(primers, aln->core.pos, bam_endpos(aln), fwd, rev);
     if(fwd.size() == 0 || rev.size() == 0 || ((aln->core.flag&BAM_FUNMAP) != 0)){
-      std::cout << "Reads going over two amplicons: "  << bam_get_qname(aln) << std::endl;
+      std::cout  << bam_get_qname(aln) << ((bam_is_rev(aln)) ? "/2" : "/1") << "\t" << aln->core.isize << std::endl;
       continue;
     }
-    fwd_max_end = get_max_end_(fwd);
-    rev_min_start = get_min_start_(rev);
+    if(bam_write1(out, aln) < 0){
+      std::cout << "Not able to write to BAM" << std::endl;
+      hts_itr_destroy(iter);
+      hts_idx_destroy(idx);
+      bam_destroy1(aln);
+      bam_hdr_destroy(header);
+      sam_close(in);
+      bgzf_close(out);
+      return -1;
+    }
+    // fwd_max_end = get_max_end_(fwd);
+    // rev_min_start = get_min_start_(rev);
+    fwd_max_end = fwd.at(0);
+    rev_min_start = rev.at(0);
     cur = get_alleles_per_read(aln, cur, fwd_max_end, rev_min_start, min_qual);
   }
   if(cur == NULL){
@@ -159,7 +179,7 @@ int identify_contamination(std::string bed, std::string bam, std::string pairs_f
 	if (tmp== NULL)
 	  continue;
 	alleles = tmp->get_alleles_above_freq(min_freq);
-	if(alleles.size() >= 1)
+	if(alleles.size() > 1)
 	  tmp->print_graph(min_freq);
       }
     }
@@ -167,18 +187,21 @@ int identify_contamination(std::string bed, std::string bam, std::string pairs_f
     // Check for variants in overlap position
     std::vector<allele*> unique_alleles;
     std::vector<uint32_t> counts;
+    uint unique_primer_count = 0;
     for (std::vector<std::vector<uint32_t>>::iterator it = overlap.begin(); it!=overlap.end(); ++it) {
       for (uint32_t i = (*it).at(0); i < (*it).at(1)+1; ++i) {
 	tmp = cur->get_node(i);
 	if (tmp== NULL)
 	  continue;
-	tmp->get_distinct_variants_amp(min_freq, unique_alleles, counts);
+	tmp->get_distinct_variants_amp(min_freq, unique_alleles, counts, unique_primer_count);
 	for (uint j = 0; j < unique_alleles.size(); ++j) {
-	  if(counts.at(j) == tmp->get_fwd_primers().size() || tmp->get_fwd_primers().size() == 1)
+	  if(counts.at(j) == unique_primer_count || tmp->get_fwd_primers().size() == 1)
 	    continue;
-	  std::cout << i << "\t"
-		    << unique_alleles.at(j)->nuc << unique_alleles.at(j)->deleted_bases << "\t"
-		    << counts.at(j)
+	  std::cout << "O " << "\t"
+		    << i << "\t"
+		    << unique_alleles.at(j)->nuc << "-" << unique_alleles.at(j)->deleted_bases << "\t"
+		    << counts.at(j) << "\t"
+		    << unique_primer_count << "\t"
 		    << std::endl;
 	}
       }
@@ -191,5 +214,6 @@ int identify_contamination(std::string bed, std::string bam, std::string pairs_f
   bam_destroy1(aln);
   bam_hdr_destroy(header);
   sam_close(in);
+  bgzf_close(out);
   return 0;
 }
