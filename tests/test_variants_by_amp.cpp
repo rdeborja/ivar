@@ -110,7 +110,8 @@ int main()
 
   std::vector<allele *> unique_alleles;
   std::vector<uint32_t> counts;
-  v->get_distinct_variants_amp(0.01, unique_alleles, counts);
+  uint unique_primer_count;
+  v->get_distinct_variants_amp(0.01, unique_alleles, counts, unique_primer_count);
   success += (unique_alleles.size() == 2) ? 0 : 1;
   success += (unique_alleles.at(0)->nuc.compare(a.nuc) == 0) ? 0 : 1;
   success += (counts.at(0) == 1) ? 0 : 1;
