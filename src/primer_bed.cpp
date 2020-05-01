@@ -261,6 +261,6 @@ std::vector<std::vector<uint32_t>> get_overlap_pos(std::vector<primer> primers){
       }
     }
   }
-  std::cout << "Found " << overlap_num << " bases covered by at least two amplicons";
+  std::cout << "Found " << overlap_num << " bases covered by at least two amplicons" << std::endl;
   return v;
 }
