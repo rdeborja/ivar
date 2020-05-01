@@ -197,14 +197,27 @@ int find_allele(allele *a, std::vector<allele*> _alleles){
   return -1;
 }
 
-void var_by_amp::get_distinct_variants_amp(double min_freq, std::vector<allele*> &unique_alleles, std::vector<uint32_t> &counts){
+std::vector<primer> var_by_amp::get_unique_primers(){
+  std::vector<primer*> p = this->get_fwd_primers();
+  std::vector<primer> v;
+  for (std::vector<primer*>::iterator it = p.begin(); it != p.end(); ++it) {
+    v.push_back(**it);
+  }
+  std::sort(v.begin(), v.end());
+  std::vector<primer>::iterator ip = std::unique(v.begin(), v.end());
+  v.resize(std::distance(v.begin(), ip));
+  return v;
+}
+
+void var_by_amp::get_distinct_variants_amp(double min_freq, std::vector<allele*> &unique_alleles, std::vector<uint32_t> &counts, uint &unique_primers){
   unique_alleles.clear();
   counts.clear();
+  unique_primers = this->get_unique_primers().size();
   std::vector<allele*> a = this->get_alleles();
   std::vector<uint32_t> counts_per_amplicon;
   uint32_t count, total_depth = this->get_depth();
   for (uint i = 0; i < a.size(); ++i) {
-    if(((a.at(i)->depth)/(double) total_depth) < min_freq)
+    if(((a.at(i)->depth)/(double) total_depth) <= min_freq)
       continue;
     if(find_allele(a.at(i), unique_alleles) != -1)
       continue;

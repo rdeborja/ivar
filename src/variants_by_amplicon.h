@@ -34,7 +34,8 @@ public:
   uint64_t get_pos();
   uint32_t get_depth();
   std::vector<allele*> get_alleles_above_freq(double min_freq);
-  void get_distinct_variants_amp(double min_freq, std::vector<allele*> &unique_alleles, std::vector<uint32_t> &counts);
+  void get_distinct_variants_amp(double min_freq, std::vector<allele*> &unique_alleles, std::vector<uint32_t> &counts, uint &unique_primers);
+  std::vector<primer> get_unique_primers();
 };
 
 #endif
