@@ -39,6 +39,7 @@ var_by_amp* get_alleles_per_read(bam1_t *aln, var_by_amp *v, primer *fwd, primer
 	if(q >= min_qual){
 	  v = v->get_or_add_node(pos);
 	  a = v->get_or_add_allele(std::string(1, seq_nt16_str[bam_seqi(seq, ql+ctr)]), "", fwd, rev);
+	  a->mean_qual = ((a->mean_qual * a->depth) + q)/(a->depth + 1);
 	  a->depth += 1;
 	}
 	ctr++;
@@ -54,9 +55,10 @@ var_by_amp* get_alleles_per_read(bam1_t *aln, var_by_amp *v, primer *fwd, primer
 	    indel += seq_nt16_str[bam_seqi(seq, ql+ctr)];
 	    ctr++;
 	  }
-	  if(bam_cigar_op(cigar[i+1]) != BAM_CSOFT_CLIP){
+	  if(bam_cigar_op(cigar[i+1]) != BAM_CSOFT_CLIP && q >= min_qual){
 	    v = v->get_or_add_node(pos);
 	    a = v->get_or_add_allele(indel, "", fwd, rev);
+	    a->mean_qual = ((a->mean_qual * a->depth) + q)/(a->depth + 1);
 	    a->depth += 1;
 	  }
 	  pos++;
@@ -65,10 +67,12 @@ var_by_amp* get_alleles_per_read(bam1_t *aln, var_by_amp *v, primer *fwd, primer
 	} else if (!(bam_cigar_type(cigar[i+1]) & 1) && (bam_cigar_type(cigar[i+1]) & 2)){ // Only ref consuming
 	  indel.clear();
 	  indel.assign(1, seq_nt16_str[bam_seqi(seq, ql+ctr)]);
-	  ctr = 0;
-	  v = v->get_or_add_node(pos);
-	  a = v->get_or_add_allele(indel, std::string(bam_cigar_oplen(cigar[i+1]), 'N'), fwd, rev);
-	  a->depth += 1;
+	  if(q >= min_qual){
+	    v = v->get_or_add_node(pos);
+	    a = v->get_or_add_allele(indel, std::string(bam_cigar_oplen(cigar[i+1]), 'N'), fwd, rev);
+	    a->mean_qual = ((a->mean_qual * a->depth) + q)/(a->depth + 1);
+	    a->depth += 1;
+	  }
 	  pos += bam_cigar_oplen(cigar[i+1]) + 1; // Account for incrementing last base of previous cigar
 	  ql += len;				  // Add query length for previous cigar
 	  i++;
@@ -77,6 +81,7 @@ var_by_amp* get_alleles_per_read(bam1_t *aln, var_by_amp *v, primer *fwd, primer
 	  if(q >= min_qual){
 	    v = v->get_or_add_node(pos);
 	    a = v->get_or_add_allele(std::string(1, seq_nt16_str[bam_seqi(seq, ql+ctr)]), "", fwd, rev);
+	    a->mean_qual = ((a->mean_qual * a->depth) + q)/(a->depth + 1);
 	    a->depth += 1;
 	  }
 	  pos++;
@@ -87,6 +92,7 @@ var_by_amp* get_alleles_per_read(bam1_t *aln, var_by_amp *v, primer *fwd, primer
 	if(q >= min_qual){
 	  v = v->get_or_add_node(pos);
 	  a = v->get_or_add_allele(std::string(1, seq_nt16_str[bam_seqi(seq, ql+ctr)]), "", fwd, rev);
+	  a->mean_qual = ((a->mean_qual * a->depth) + q)/(a->depth + 1);
 	  a->depth += 1;
 	}
 	pos++;
@@ -139,11 +145,11 @@ int identify_contamination(std::string bed, std::string bam, std::string pairs_f
   iter  = sam_itr_querys(idx, header, header->target_name[0]);
   var_by_amp *cur= NULL;
   bam1_t *aln = bam_init1();
-  double min_freq = 0.3;
+  double min_freq = 0.03;
   std::cout << "Reads overlapping multiple amplicons: " << std::endl;
   std::vector<std::vector<uint32_t>> overlap = get_overlap_pos(primers);
   while(sam_itr_next(in, iter, aln) >= 0) {
-    identify_amp(primers, aln->core.pos, bam_endpos(aln), fwd, rev);
+    identify_amp(primers, aln->core.pos, bam_endpos(aln) - 1, fwd, rev);
     if(fwd.size() == 0 || rev.size() == 0 || ((aln->core.flag&BAM_FUNMAP) != 0)){
       std::cout  << bam_get_qname(aln) << ((bam_is_rev(aln)) ? "/2" : "/1") << "\t" << aln->core.isize << std::endl;
       continue;
@@ -172,15 +178,19 @@ int identify_contamination(std::string bed, std::string bam, std::string pairs_f
     }
     // Check for variants in primer positions
     var_by_amp *tmp;
-    std::vector<allele*> alleles;
+    std::vector<int> allele_indices;
     for (std::vector<primer>::iterator it=primers.begin(); it != primers.end(); ++it) {
       for (uint32_t i = it->get_start(); i < it->get_end()+1; ++i) {
 	tmp = cur->get_node(i);
 	if (tmp== NULL)
 	  continue;
-	alleles = tmp->get_alleles_above_freq(min_freq);
-	if(alleles.size() > 1)
+	allele_indices = tmp->get_alleles_above_freq(min_freq);
+	if(allele_indices.size() > 1){
 	  tmp->print_graph(min_freq);
+	  for (std::vector<int>::iterator ait = allele_indices.begin(); ait != allele_indices.end();  ++ait) {
+	    tmp->get_linked_variants_on_amplicon(*ait);
+	  }
+	}
       }
     }
     std::cout << "Overlap" << std::endl << std::endl;
@@ -197,9 +207,12 @@ int identify_contamination(std::string bed, std::string bam, std::string pairs_f
 	for (uint j = 0; j < unique_alleles.size(); ++j) {
 	  if(counts.at(j) == unique_primer_count || tmp->get_fwd_primers().size() == 1)
 	    continue;
+	  tmp->print_graph(false);
 	  std::cout << "O " << "\t"
 		    << i << "\t"
-		    << unique_alleles.at(j)->nuc << "-" << unique_alleles.at(j)->deleted_bases << "\t"
+		    << unique_alleles.at(j)->nuc
+		    << ((!unique_alleles.at(j)->deleted_bases.empty()) ? "-"+unique_alleles.at(j)->deleted_bases : "") << "\t"
+		    << (unique_alleles.at(j)->depth/(double) tmp->get_depth()) << "\t"
 		    << counts.at(j) << "\t"
 		    << unique_primer_count << "\t"
 		    << std::endl;
