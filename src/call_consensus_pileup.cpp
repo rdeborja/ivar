@@ -1,6 +1,6 @@
 #include "call_consensus_pileup.h"
 
-ret_t get_consensus_allele(std::vector<allele> ad, uint8_t min_qual, double threshold, char gap){
+ret_t get_consensus_allele(std::vector<allele> &ad, uint8_t min_qual, double threshold, char gap){
   ret_t t;
   t.nuc = "";
   t.q = "";
