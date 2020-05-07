@@ -136,9 +136,10 @@ void var_by_amp::print_graph(bool recurse = true){
     std::cout << this->pos << this->delim;
     std::cout << this->fwd_primers.at(it-alleles.begin())->get_name() << this->delim << this->rev_primers.at(it-alleles.begin())->get_name() << this->delim;
     std::cout << (*it)->nuc << this->delim;
-    if((*it)->deleted_bases.size() > 0)
+    if((*it)->deleted_bases.size() > 0) {
       std::cout << (*it)->deleted_bases.size() << this->delim;
-						  std::cout << (*it)->depth << std::endl;
+    }
+    std::cout << (*it)->depth << std::endl;
   }
   if(recurse){
     if(this->next != NULL){
@@ -147,19 +148,62 @@ void var_by_amp::print_graph(bool recurse = true){
   }
 }
 
+void var_by_amp::get_linked_variants_on_amplicon(int allele_indice){
+  primer *fwd = this->get_fwd_primers().at(allele_indice);
+  primer *rev = this->get_rev_primers().at(allele_indice);
+  var_by_amp *tmp = this;
+  std::vector<allele*> alleles;
+  allele *a = this->get_alleles().at(allele_indice);
+  double freq, cur_freq = a->depth/(double) this->get_depth();
+  uint32_t depth;
+  double pval_left, pval_right, pval_twotailed, sig_level = 0.05;
+  for (uint i = fwd->get_start(); i < rev->get_end() + 1; ++i) {
+    tmp = tmp->get_node(i);
+    if(tmp == NULL){
+      tmp = this;
+      continue;
+    }
+    alleles = tmp->get_alleles();
+    depth = tmp->get_depth();
+    for (std::vector<allele*>::iterator it = alleles.begin(); it != alleles.end(); ++it) {
+      if(*fwd == *(tmp->get_fwd_primers().at(it-alleles.begin())) && *rev == *(tmp->get_rev_primers().at(it-alleles.begin()))){
+	continue;
+      }
+      freq = (*it)->depth/(double) depth;
+      if(freq < cur_freq/2 || freq > cur_freq * 2) // Check within a fold change for noq
+	continue;
+      /*
+	                | Var | Other |
+	Primer mismatch |     |       |
+	Other site      |     |       |
+      */
+      kt_fisher_exact(a->depth, this->get_depth() - a->depth, (*it)->depth, depth - (*it)->depth, &pval_left, &pval_right, &pval_twotailed);
+      if(pval_twotailed < sig_level){
+	std::cout << "Primer mismatch: " << a->nuc << "\t" << this->pos << "\t" << fwd->get_name() << "\t" << rev->get_name() << std::endl;
+	std::cout << "Linked Sig: " << tmp->pos << "\t" << (*it)->nuc << "\t" << (*it)->depth << std::endl;
+      } // else {
+      // 	std::cout << "Linked: " << tmp->pos << "\t" << a->nuc << "\t" << a->depth;
+      // }
+    }
+
+  }
+
+}
+
 void var_by_amp::print_graph(double min_freq){
   uint32_t total_depth = this->get_depth();
   double freq;
   for (std::vector<allele*>::iterator it = this->alleles.begin(); it != this->alleles.end(); ++it) {
-    freq = (*it)->depth/total_depth;
+    freq = (double) (*it)->depth/(double) total_depth;
     if(freq < min_freq)
       continue;
     std::cout << this->pos << this->delim;
     std::cout << this->fwd_primers.at(it-alleles.begin())->get_name() << this->delim << this->rev_primers.at(it-alleles.begin())->get_name() << this->delim;
     std::cout << (*it)->nuc << this->delim;
-    if((*it)->deleted_bases.size() > 0)
+    if((*it)->deleted_bases.size() > 0){
       std::cout << (*it)->deleted_bases.size() << this->delim;
-						  std::cout << (*it)->depth << std::endl;
+    }
+    std::cout << (*it)->depth << std::endl;
   }
 }
 
@@ -216,8 +260,11 @@ void var_by_amp::get_distinct_variants_amp(double min_freq, std::vector<allele*>
   std::vector<allele*> a = this->get_alleles();
   std::vector<uint32_t> counts_per_amplicon;
   uint32_t count, total_depth = this->get_depth();
+  double error_rate, freq;
   for (uint i = 0; i < a.size(); ++i) {
-    if(((a.at(i)->depth)/(double) total_depth) <= min_freq)
+    error_rate = pow(10, -1*((double)(a.at(i)->mean_qual)/(double)10));
+    freq = ((double)(a.at(i)->depth)/(double) total_depth);
+    if((freq <= min_freq) || freq <= error_rate)
       continue;
     if(find_allele(a.at(i), unique_alleles) != -1)
       continue;
@@ -227,15 +274,17 @@ void var_by_amp::get_distinct_variants_amp(double min_freq, std::vector<allele*>
   }
 }
 
-std::vector<allele*> var_by_amp::get_alleles_above_freq(double min_freq){
+std::vector<int> var_by_amp::get_alleles_above_freq(double min_freq){
   double freq;
-  std::vector<allele*> v;
+  std::vector<int> v;
   uint32_t total_depth = this->get_depth();
   std::vector<allele*> a = this->get_alleles();
+  double error_rate;
   for (std::vector<allele*>::iterator it = a.begin(); it != a.end(); ++it) {
-    freq = ((*it)->depth)/(double)total_depth;
-    if(freq >= min_freq)
-      v.push_back(*it);
+    freq = ((double)(*it)->depth)/(double)total_depth;
+    error_rate = pow(10, -1*((double)((*it)->mean_qual)/(double)10));
+    if(freq >= min_freq && freq >= error_rate)
+      v.push_back(it-a.begin());
   }
   return v;
 }

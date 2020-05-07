@@ -1,7 +1,9 @@
 #include <iostream>
+#include <cmath>
 
 #include "primer_bed.h"
 #include "allele_functions.h"
+#include <htslib/kfunc.h>
 
 #ifndef variants_by_amplicon
 #define variants_by_amplicon
@@ -33,9 +35,10 @@ public:
   void print_graph(double min_freq);
   uint64_t get_pos();
   uint32_t get_depth();
-  std::vector<allele*> get_alleles_above_freq(double min_freq);
+  std::vector<int> get_alleles_above_freq(double min_freq);
   void get_distinct_variants_amp(double min_freq, std::vector<allele*> &unique_alleles, std::vector<uint32_t> &counts, uint &unique_primers);
   std::vector<primer> get_unique_primers();
+  void get_linked_variants_on_amplicon(int allele_indice);
 };
 
 #endif
