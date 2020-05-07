@@ -255,7 +255,7 @@ std::vector<std::vector<uint32_t>> get_overlap_pos(std::vector<primer> primers){
 	overlap_end = std::min(end, end2);
 	tmp.push_back(overlap_start);
 	tmp.push_back(overlap_end);
-	overlap_num += overlap_end - overlap_start;
+	overlap_num += (overlap_end - overlap_start);
 	v.push_back(tmp);
 	tmp.clear();
       }
