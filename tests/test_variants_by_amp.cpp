@@ -41,7 +41,7 @@ int main()
     "A",
     1,
     0,
-    0,
+    30,
     0,
     0,
     0,
@@ -51,7 +51,7 @@ int main()
     "T",
     1,
     0,
-    0,
+    30,
     0,
     0,
     0,
@@ -112,11 +112,14 @@ int main()
   std::vector<uint32_t> counts;
   uint unique_primer_count;
   v->get_distinct_variants_amp(0.01, unique_alleles, counts, unique_primer_count);
-  success += (unique_alleles.size() == 2) ? 0 : 1;
+  success += (unique_alleles.size() == 1) ? 0 : 1;
   success += (unique_alleles.at(0)->nuc.compare(a.nuc) == 0) ? 0 : 1;
   success += (counts.at(0) == 1) ? 0 : 1;
-  success += (unique_alleles.at(1)->nuc.compare(a2.nuc) == 0) ? 0 : 1;
-  success += (counts.at(1) == 3) ? 0 : 1;
+  success += (unique_primer_count == 3) ? 0 : 1;
+
+  // Test associated variants
+  // v =v->get_node(7);
+  // v->add_associated_variants(8, "A", b);
 
   v->print_graph(true);
   return (success == 0) ? 0 : -1;
