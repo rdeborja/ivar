@@ -19,9 +19,10 @@ allele* var_by_amp::get_allele(std::string nuc, std::string deleted_bases, prime
 }
 
 void var_by_amp::add_allele(allele* a, primer *fwd, primer *rev){
-  alleles.push_back(a);
+  this->alleles.push_back(a);
   this->fwd_primers.push_back(fwd);
   this->rev_primers.push_back(rev);
+  this->associated_variants.push_back(std::map<uint32_t, std::map<std::string, uint32_t>>());
 }
 
 std::vector<primer*> var_by_amp::get_fwd_primers(){
@@ -156,7 +157,6 @@ void var_by_amp::get_linked_variants_on_amplicon(int allele_indice){
   allele *a = this->get_alleles().at(allele_indice);
   double freq, cur_freq = a->depth/(double) this->get_depth();
   uint32_t depth;
-  double pval_left, pval_right, pval_twotailed, sig_level = 0.05;
   for (uint i = fwd->get_start(); i < rev->get_end() + 1; ++i) {
     tmp = tmp->get_node(i);
     if(tmp == NULL){
@@ -172,22 +172,9 @@ void var_by_amp::get_linked_variants_on_amplicon(int allele_indice){
       freq = (*it)->depth/(double) depth;
       if(freq < cur_freq/2 || freq > cur_freq * 2) // Check within a fold change for noq
 	continue;
-      /*
-	                | Var | Other |
-	Primer mismatch |     |       |
-	Other site      |     |       |
-      */
-      kt_fisher_exact(a->depth, this->get_depth() - a->depth, (*it)->depth, depth - (*it)->depth, &pval_left, &pval_right, &pval_twotailed);
-      if(pval_twotailed < sig_level){
-	std::cout << "Primer mismatch: " << a->nuc << "\t" << this->pos << "\t" << fwd->get_name() << "\t" << rev->get_name() << std::endl;
-	std::cout << "Linked Sig: " << tmp->pos << "\t" << (*it)->nuc << "\t" << (*it)->depth << std::endl;
-      } // else {
-      // 	std::cout << "Linked: " << tmp->pos << "\t" << a->nuc << "\t" << a->depth;
-      // }
-    }
-
+      std::cout << this->pos << "\t" << a->nuc << "\t" << cur_freq << "\t" << fwd->get_name() << "\t" << rev->get_name() << "\t" << tmp->pos << "\t" << (*it)->nuc << "\t" << freq << std::endl;
+      }
   }
-
 }
 
 void var_by_amp::print_graph(double min_freq){
@@ -241,22 +228,26 @@ int find_allele(allele *a, std::vector<allele*> _alleles){
   return -1;
 }
 
-std::vector<primer> var_by_amp::get_unique_primers(){
-  std::vector<primer*> p = this->get_fwd_primers();
-  std::vector<primer> v;
-  for (std::vector<primer*>::iterator it = p.begin(); it != p.end(); ++it) {
-    v.push_back(**it);
+int var_by_amp::get_num_unique_primers(){
+  std::vector<primer*> pfwd = this->get_fwd_primers();
+  std::vector<primer*> prev = this->get_rev_primers();
+  std::vector<uint16_t> uniq_fwd_indices;
+  std::vector<uint16_t> uniq_rev_indices;
+  std::vector<uint16_t>::iterator fwdit;
+  for (uint i = 0; i< pfwd.size();i++) {
+    fwdit = std::find(uniq_fwd_indices.begin(), uniq_fwd_indices.end(), pfwd.at(i)->get_indice());
+    if(fwdit == uniq_fwd_indices.end() || uniq_rev_indices.at(fwdit - uniq_fwd_indices.begin()) != prev.at(i)->get_indice()){
+      uniq_fwd_indices.push_back(pfwd.at(i)->get_indice());
+      uniq_rev_indices.push_back(prev.at(i)->get_indice());
+    }
   }
-  std::sort(v.begin(), v.end());
-  std::vector<primer>::iterator ip = std::unique(v.begin(), v.end());
-  v.resize(std::distance(v.begin(), ip));
-  return v;
+  return uniq_fwd_indices.size();
 }
 
 void var_by_amp::get_distinct_variants_amp(double min_freq, std::vector<allele*> &unique_alleles, std::vector<uint32_t> &counts, uint &unique_primers){
   unique_alleles.clear();
   counts.clear();
-  unique_primers = this->get_unique_primers().size();
+  unique_primers = this->get_num_unique_primers();
   std::vector<allele*> a = this->get_alleles();
   std::vector<uint32_t> counts_per_amplicon;
   uint32_t count, total_depth = this->get_depth();
@@ -272,6 +263,26 @@ void var_by_amp::get_distinct_variants_amp(double min_freq, std::vector<allele*>
     counts.push_back(count);
     unique_alleles.push_back(a.at(i));
   }
+}
+
+int var_by_amp::add_associated_variants(uint32_t pos, std::string nuc, allele *a){
+  uint ind = std::find(this->alleles.begin(), this->alleles.end(), a) - this->alleles.end();
+  if (ind == this->alleles.size()){
+    std::cout << "Allele not found in vector" << std::endl;
+    return -1;
+  }
+  std::map<std::string, uint32_t> m;
+  if(this->associated_variants.at(ind).find(pos) == this->associated_variants.at(ind).end()){
+    this->associated_variants.at(ind)[pos] = m;
+  } else {
+    m = this->associated_variants.at(ind)[pos];
+  }
+  if(m.find(nuc) == m.end()){
+    m[nuc] = 1;
+  } else {
+    m[nuc] += 1;
+  }
+  return 0;
 }
 
 std::vector<int> var_by_amp::get_alleles_above_freq(double min_freq){

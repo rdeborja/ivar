@@ -1,5 +1,6 @@
 #include <iostream>
 #include <cmath>
+#include <map>
 
 #include "primer_bed.h"
 #include "allele_functions.h"
@@ -12,7 +13,8 @@ class var_by_amp{
   std::uint64_t pos;
   std::vector<primer*> fwd_primers;
   std::vector<primer*> rev_primers;
-  std::vector<allele*> alleles;
+  std::vector<allele*> alleles;	// Every allele has an associated map of positions and variants counts
+  std::vector<std::map<uint32_t, std::map<std::string, uint32_t>>> associated_variants; // map[pos] = map[allele, count_at_pos] for every amplicon covering position
   std::string delim = "\t";
   var_by_amp* next;
   var_by_amp* prev;
@@ -37,8 +39,9 @@ public:
   uint32_t get_depth();
   std::vector<int> get_alleles_above_freq(double min_freq);
   void get_distinct_variants_amp(double min_freq, std::vector<allele*> &unique_alleles, std::vector<uint32_t> &counts, uint &unique_primers);
-  std::vector<primer> get_unique_primers();
+  int get_num_unique_primers();
   void get_linked_variants_on_amplicon(int allele_indice);
+  int add_associated_variants(uint32_t pos, std::string nuc, allele *a); // Add associated variant for a particular allele
 };
 
 #endif
