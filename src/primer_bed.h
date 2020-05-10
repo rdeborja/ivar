@@ -43,6 +43,9 @@ class primer {
   bool operator == (const primer& p) const{
     return (indice == p.get_indice()) ? true : false;
   }
+  bool operator != (const primer& p) const{
+    return (indice != p.get_indice()) ? true : false;
+  }  
   bool operator < (const primer& p) const{
     return (indice < p.get_indice()) ? true : false;
   }
