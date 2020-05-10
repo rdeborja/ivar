@@ -77,23 +77,26 @@ int main() {
   int success = 0;
   allele arr[] = {a1, ai1,a2,a3,a4,a5};
   ret_t s;
-  std::vector<allele> ad(arr, arr+sizeof(arr)/sizeof(allele));
+  std::vector<allele> ad = {a1, ai1, a2, a3,a4,a5};
   int size = sizeof(arr)/sizeof(allele);
   for(int i = 0;i<size;i++){
     ad.at(i) = arr[i];
   }
+
   // A, AT
   s = get_consensus_allele(ad,20,.6, 'N');
   std::cout << s.nuc << ": " << s.q << std::endl;
   success += (s.nuc.compare("AT") == 0) ? 1: 0;
   success += (s.q.compare("?5") == 0) ? 1 : 0;
   // A, AT, T, C, G -> NT
+  ad = {a1, ai1, a2, a3,a4,a5};
   s = get_consensus_allele(ad,20,.7, 'N');
   std::cout << s.nuc << ": " << s.q << std::endl;
   success += (s.nuc.compare("NT") == 0) ? 1: 0;
   success += (s.q.compare("?5") == 0) ? 1 : 0;
 
   // A, AT, GA
+  ad = {a1, ai1, a2, a3,a4,a5};
   ad.erase(ad.begin() + 4, ad.begin()+5);
   ad.push_back(a6);
   s = get_consensus_allele(ad,20,.7, 'N');
@@ -113,6 +116,7 @@ int main() {
     ""
   };
 
+  ad = {a1, ai1, a2, a3, a5,a6};
   ad.push_back(a7);
   s = get_consensus_allele(ad,20,0, 'N');
   std::cout << s.nuc << ": " << s.q << std::endl;
