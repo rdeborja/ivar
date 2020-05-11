@@ -57,7 +57,6 @@ int main()
     0,
     ""
   };
-  
   primer *fwd = new primer();
   fwd->set_name("Fwd1");
   fwd->set_start(5);
@@ -118,9 +117,28 @@ int main()
   success += (unique_primer_count == 3) ? 0 : 1;
 
   // Test associated variants
-  // v =v->get_node(7);
-  // v->add_associated_variants(8, "A", b);
+  
+  v =v->get_node(7);
+  allele a3 = {
+    "A",
+    1,
+    0,
+    30,
+    0,
+    0,
+    0,
+    ""
+  };
+
+  v->add_associated_variants(8, &a3, b, fwd, rev);
+  v->add_associated_variants(8, &a3, b, fwd, rev);
+  a3.nuc = "ATG";
+  v->add_associated_variants(8, &a3, b, fwd, rev);
+
+  success += (v->get_associated_variants().at(1)[8]["A"] == 2) ? 0 : 1;
+  success += (v->get_associated_variants().at(1)[8]["ATG"] == 1) ? 0 : 1;
 
   v->print_graph(true);
+  
   return (success == 0) ? 0 : -1;
 }
