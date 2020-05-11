@@ -117,13 +117,15 @@ var_by_amp* get_alleles_per_read(bam1_t *aln, var_by_amp *v, primer *fwd, primer
     }
     i++;
   }
-  uint32_t current_pos;
-  for (uint i = 0; i < current_read_alleles.size(); ++i) {
-    current_pos = current_read_pos.at(i);
-    v = v->get_node(current_pos);
-    for (uint j = i+1; j < current_read_alleles.size(); ++j) {
-      pos = current_read_pos.at(j);
-      v->add_associated_variants(pos, current_read_alleles.at(j), current_read_alleles.at(i), fwd, rev);
+  if(aln->core.pos <= 3049 && 3049 <= bam_endpos(aln)){
+    uint32_t current_pos;
+    for (uint i = 0; i < current_read_alleles.size(); ++i) {
+      current_pos = current_read_pos.at(i);
+      v = v->get_node(current_pos);
+      for (uint j = i+1; j < current_read_alleles.size(); ++j) {
+	pos = current_read_pos.at(j);
+	v->add_associated_variants(pos, current_read_alleles.at(j), current_read_alleles.at(i), fwd, rev);
+      }
     }
   }
   return v;
@@ -229,6 +231,7 @@ int identify_contamination(std::string bed, std::string bam, std::string pairs_f
 	  if(counts.at(j) == unique_primer_count || tmp->get_fwd_primers().size() == 1)
 	    continue;
 	  tmp->print_graph(false);
+	  tmp->print_linked_variants();
 	  std::cout << "O " << "\t"
 		    << i << "\t"
 		    << unique_alleles.at(j)->nuc
@@ -240,6 +243,10 @@ int identify_contamination(std::string bed, std::string bam, std::string pairs_f
 	}
       }
     }
+    std::cout << "---" << std::endl << std::endl;
+    cur = cur->get_node(3049);
+    cur->print_graph(false);
+    cur->print_linked_variants();
     // cur->print_graph(true);
     delete cur; 
   }
