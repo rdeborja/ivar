@@ -10,10 +10,13 @@ var_by_amp::~var_by_amp(){
 
 }
 
-allele* var_by_amp::get_allele(std::string nuc, std::string deleted_bases, primer *fwd, primer*rev){
+allele* var_by_amp::get_allele(std::string nuc, std::string deleted_bases, primer *fwd, primer*rev, int &allele_ind){
+  allele_ind = -1;
   for (std::vector<allele*>::iterator it = this->alleles.begin(); it != this->alleles.end(); ++it) {
-    if((*it)->nuc.compare(nuc) == 0 && (*it)->deleted_bases.compare(deleted_bases) == 0 && this->fwd_primers.at(it - this->alleles.begin())->get_indice() == fwd->get_indice() && this->rev_primers.at(it - this->alleles.begin())->get_indice() == rev->get_indice())
+    if((*it)->nuc.compare(nuc) == 0 && (*it)->deleted_bases.compare(deleted_bases) == 0 && this->fwd_primers.at(it - this->alleles.begin())->get_indice() == fwd->get_indice() && this->rev_primers.at(it - this->alleles.begin())->get_indice() == rev->get_indice()){
+      allele_ind = (it - this->alleles.begin());
       return (*it);
+    }
   }
   return NULL;
 }
@@ -39,6 +42,10 @@ uint64_t var_by_amp::get_pos(){
 
 std::vector<allele*> var_by_amp::get_alleles(){
   return this->alleles;
+}
+
+std::vector<std::map<uint32_t, std::map<std::string, uint32_t>>> var_by_amp::get_associated_variants(){
+  return this->associated_variants;
 }
 
 void var_by_amp::add_next(var_by_amp *n){
@@ -116,7 +123,8 @@ var_by_amp* var_by_amp::get_or_add_node(uint64_t p){
 }
 
 allele* var_by_amp::get_or_add_allele(std::string nuc, std::string deleted_bases, primer *fwd, primer *rev){
-  allele *a = this->get_allele(nuc, deleted_bases, fwd, rev);
+  int allele_ind;
+  allele *a = this->get_allele(nuc, deleted_bases, fwd, rev, allele_ind);
   if(a == NULL){
     a = new allele();
     a->nuc = nuc;
@@ -141,6 +149,13 @@ void var_by_amp::print_graph(bool recurse = true){
       std::cout << (*it)->deleted_bases.size() << this->delim;
     }
     std::cout << (*it)->depth << std::endl;
+    std::cout << "Associated variants" << std::endl;
+    std::map<uint32_t, std::map<std::string, uint32_t>> m = this->get_associated_variants().at((it - alleles.begin()));
+    for(std::map<uint32_t, std::map<std::string, uint32_t>>::iterator m_it1 = m.begin(); m_it1 != m.end(); m_it1++){
+      for(std::map<std::string, uint32_t>::iterator m_it2 = m_it1->second.begin(); m_it2 != m_it1->second.end(); m_it2++){
+	std::cout << m_it1->first << this->delim << m_it2->first << this->delim << m_it2->second << std::endl;
+      }
+    }
   }
   if(recurse){
     if(this->next != NULL){
@@ -265,22 +280,20 @@ void var_by_amp::get_distinct_variants_amp(double min_freq, std::vector<allele*>
   }
 }
 
-int var_by_amp::add_associated_variants(uint32_t pos, std::string nuc, allele *a){
-  uint ind = std::find(this->alleles.begin(), this->alleles.end(), a) - this->alleles.end();
-  if (ind == this->alleles.size()){
+int var_by_amp::add_associated_variants(uint32_t pos, allele *aa, allele *a, primer *fwd, primer *rev){
+  int ind;
+  get_allele(a->nuc, a->deleted_bases, fwd, rev, ind);
+  if (ind == -1){
     std::cout << "Allele not found in vector" << std::endl;
     return -1;
   }
-  std::map<std::string, uint32_t> m;
+  std::string nuc = (aa->deleted_bases.size() == 0) ? aa->nuc : aa->nuc + "-" + aa->deleted_bases;
   if(this->associated_variants.at(ind).find(pos) == this->associated_variants.at(ind).end()){
+    std::map<std::string, uint32_t> m;
+    m[nuc] = 1;
     this->associated_variants.at(ind)[pos] = m;
   } else {
-    m = this->associated_variants.at(ind)[pos];
-  }
-  if(m.find(nuc) == m.end()){
-    m[nuc] = 1;
-  } else {
-    m[nuc] += 1;
+    this->associated_variants.at(ind)[pos][nuc] += 1;
   }
   return 0;
 }

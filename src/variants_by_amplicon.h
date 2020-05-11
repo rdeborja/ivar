@@ -22,7 +22,7 @@ public:
   var_by_amp(uint64_t pos);
   ~var_by_amp();
   allele* get_or_add_allele(std::string nuc, std::string deleted_bases, primer *fwd, primer *rev);
-  allele* get_allele(std::string nuc, std::string deleted_bases, primer *fwd, primer *rev);
+  allele* get_allele(std::string nuc, std::string deleted_bases, primer *fwd, primer *rev, int &allele_ind);
   void add_allele(allele *a, primer *fwd, primer *rev);
   std::vector<primer*> get_fwd_primers();
   std::vector<primer*> get_rev_primers();
@@ -32,6 +32,7 @@ public:
   var_by_amp* get_prev();
   var_by_amp* get_next();
   var_by_amp* get_node(uint64_t pos);
+  std::vector<std::map<uint32_t, std::map<std::string, uint32_t>>> get_associated_variants();
   var_by_amp* get_or_add_node(uint64_t pos);
   void print_graph(bool recurse);
   void print_graph(double min_freq);
@@ -41,7 +42,7 @@ public:
   void get_distinct_variants_amp(double min_freq, std::vector<allele*> &unique_alleles, std::vector<uint32_t> &counts, uint &unique_primers);
   int get_num_unique_primers();
   void get_linked_variants_on_amplicon(int allele_indice);
-  int add_associated_variants(uint32_t pos, std::string nuc, allele *a); // Add associated variant for a particular allele
+  int add_associated_variants(uint32_t pos, allele *aa, allele *a, primer *fwd, primer *rev); // Add associated variant for a particular allele
 };
 
 #endif
