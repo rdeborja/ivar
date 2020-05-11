@@ -43,6 +43,7 @@ public:
   int get_num_unique_primers();
   void get_linked_variants_on_amplicon(int allele_indice);
   int add_associated_variants(uint32_t pos, allele *aa, allele *a, primer *fwd, primer *rev); // Add associated variant for a particular allele
+  void print_linked_variants();
 };
 
 #endif

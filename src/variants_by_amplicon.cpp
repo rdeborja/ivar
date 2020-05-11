@@ -149,13 +149,14 @@ void var_by_amp::print_graph(bool recurse = true){
       std::cout << (*it)->deleted_bases.size() << this->delim;
     }
     std::cout << (*it)->depth << std::endl;
-    std::cout << "Associated variants" << std::endl;
-    std::map<uint32_t, std::map<std::string, uint32_t>> m = this->get_associated_variants().at((it - alleles.begin()));
-    for(std::map<uint32_t, std::map<std::string, uint32_t>>::iterator m_it1 = m.begin(); m_it1 != m.end(); m_it1++){
-      for(std::map<std::string, uint32_t>::iterator m_it2 = m_it1->second.begin(); m_it2 != m_it1->second.end(); m_it2++){
-	std::cout << m_it1->first << this->delim << m_it2->first << this->delim << m_it2->second << std::endl;
-      }
-    }
+    // std::cout << "Associated variants" << std::endl;
+    // std::map<uint32_t, std::map<std::string, uint32_t>> m = this->get_associated_variants().at((it - alleles.begin()));
+    // for(std::map<uint32_t, std::map<std::string, uint32_t>>::iterator m_it1 = m.begin(); m_it1 != m.end(); m_it1++){
+    //   for(std::map<std::string, uint32_t>::iterator m_it2 = m_it1->second.begin(); m_it2 != m_it1->second.end(); m_it2++){
+    // 	std::cout << m_it1->first << this->delim << m_it2->first << this->delim << m_it2->second << std::endl;
+    //   }
+    // }
+    std::cout << "-----" << std::endl;
   }
   if(recurse){
     if(this->next != NULL){
@@ -277,6 +278,42 @@ void var_by_amp::get_distinct_variants_amp(double min_freq, std::vector<allele*>
     count = get_count_of_alleles(a.at(i), a);
     counts.push_back(count);
     unique_alleles.push_back(a.at(i));
+  }
+}
+
+void var_by_amp::print_linked_variants(){
+  double pa, pb, pab, dmax, d;
+  uint32_t total_depth = this->get_depth(), asc_pos_depth;
+  var_by_amp *v;
+  int allele_ind;
+  allele *asc_a;
+  std::string nuc, deleted_bases;
+  for (std::vector<allele*>::iterator it = alleles.begin(); it != alleles.end(); ++it) {
+    pa = (*it)->depth / (double) total_depth;
+    std::map<uint32_t, std::map<std::string, uint32_t>> m = this->get_associated_variants().at((it - alleles.begin()));
+    for(std::map<uint32_t, std::map<std::string, uint32_t>>::iterator m_it1 = m.begin(); m_it1 != m.end(); m_it1++){
+      v = this->get_node(m_it1->first);
+      // v->print_graph(false);
+      asc_pos_depth = v->get_depth();
+      for(std::map<std::string, uint32_t>::iterator m_it2 = m_it1->second.begin(); m_it2 != m_it1->second.end(); m_it2++){
+	nuc = m_it2->first.substr(0, m_it2->first.find("-"));
+	deleted_bases = "";
+	if(m_it2->first.find("-") != std::string::npos)
+	  deleted_bases = m_it2->first.substr(m_it2->first.find("-")+1, m_it2->first.size());
+	asc_a = v->get_allele(nuc, deleted_bases, this->get_fwd_primers().at(it - alleles.begin()), this->get_rev_primers().at(it - alleles.begin()), allele_ind);
+	if(asc_a != NULL){
+	  pb = asc_a->depth/(double) asc_pos_depth;
+	  pab = m_it2->second/(double) std::min(total_depth, asc_pos_depth);
+	  d = pab - (pa * pb);
+	  dmax = (d > 0) ? std::min(pa * (1-pb), (1-pa)*pb) : std::max(-pa*pb, -(1-pa) * (1-pb));
+	  if(dmax >= 0.75 || dmax <= 0.25 || d == 0){
+	    std::cout << this->pos << this->delim << (*it)->nuc << (*it)->deleted_bases << this->delim << m_it1->first << this->delim << m_it2->first << this->delim << m_it2->second << this->delim << dmax << this->delim << d << std::endl;
+	  }
+	} else {
+	  std::cout << nuc << deleted_bases << "not found for pos " << m_it1->first << std::endl;
+	}
+      }
+    }
   }
 }
 
