@@ -22,10 +22,12 @@ var_by_amp* get_alleles_per_read(bam1_t *aln, var_by_amp *v, primer *fwd, primer
   uint32_t* cigar = bam_get_cigar(aln);
   uint32_t cig;
   uint i = 0, len, ctr = 0;
-  uint64_t pos = aln->core.pos, ql=0;
+  uint32_t pos = aln->core.pos, ql=0;
   uint8_t *seq = bam_get_seq(aln);
   allele *a;
   std::string indel;
+  std::vector<allele*> current_read_alleles;
+  std::vector<uint32_t> current_read_pos;
   uint8_t *qual = bam_get_qual(aln), q;
   if(v == NULL)
     v = new var_by_amp(pos);
@@ -41,6 +43,8 @@ var_by_amp* get_alleles_per_read(bam1_t *aln, var_by_amp *v, primer *fwd, primer
 	  a = v->get_or_add_allele(std::string(1, seq_nt16_str[bam_seqi(seq, ql+ctr)]), "", fwd, rev);
 	  a->mean_qual = ((a->mean_qual * a->depth) + q)/(a->depth + 1);
 	  a->depth += 1;
+	  current_read_alleles.push_back(a);
+	  current_read_pos.push_back(pos);
 	}
 	ctr++;
 	pos++;
@@ -60,6 +64,8 @@ var_by_amp* get_alleles_per_read(bam1_t *aln, var_by_amp *v, primer *fwd, primer
 	    a = v->get_or_add_allele(indel, "", fwd, rev);
 	    a->mean_qual = ((a->mean_qual * a->depth) + q)/(a->depth + 1);
 	    a->depth += 1;
+	    current_read_alleles.push_back(a);
+	    current_read_pos.push_back(pos);
 	  }
 	  pos++;
 	  ql += bam_cigar_oplen(cigar[i+1]);
@@ -72,6 +78,8 @@ var_by_amp* get_alleles_per_read(bam1_t *aln, var_by_amp *v, primer *fwd, primer
 	    a = v->get_or_add_allele(indel, std::string(bam_cigar_oplen(cigar[i+1]), 'N'), fwd, rev);
 	    a->mean_qual = ((a->mean_qual * a->depth) + q)/(a->depth + 1);
 	    a->depth += 1;
+	    current_read_alleles.push_back(a);
+	    current_read_pos.push_back(pos);
 	  }
 	  pos += bam_cigar_oplen(cigar[i+1]) + 1; // Account for incrementing last base of previous cigar
 	  ql += len;				  // Add query length for previous cigar
@@ -83,6 +91,8 @@ var_by_amp* get_alleles_per_read(bam1_t *aln, var_by_amp *v, primer *fwd, primer
 	    a = v->get_or_add_allele(std::string(1, seq_nt16_str[bam_seqi(seq, ql+ctr)]), "", fwd, rev);
 	    a->mean_qual = ((a->mean_qual * a->depth) + q)/(a->depth + 1);
 	    a->depth += 1;
+	    current_read_alleles.push_back(a);
+	    current_read_pos.push_back(pos);
 	  }
 	  pos++;
 	  ql += len;
@@ -94,6 +104,8 @@ var_by_amp* get_alleles_per_read(bam1_t *aln, var_by_amp *v, primer *fwd, primer
 	  a = v->get_or_add_allele(std::string(1, seq_nt16_str[bam_seqi(seq, ql+ctr)]), "", fwd, rev);
 	  a->mean_qual = ((a->mean_qual * a->depth) + q)/(a->depth + 1);
 	  a->depth += 1;
+	  current_read_alleles.push_back(a);
+	  current_read_pos.push_back(pos);
 	}
 	pos++;
 	ql+=len;
@@ -104,6 +116,15 @@ var_by_amp* get_alleles_per_read(bam1_t *aln, var_by_amp *v, primer *fwd, primer
       pos += len;
     }
     i++;
+  }
+  uint32_t current_pos;
+  for (uint i = 0; i < current_read_alleles.size(); ++i) {
+    current_pos = current_read_pos.at(i);
+    v = v->get_node(current_pos);
+    for (uint j = i+1; j < current_read_alleles.size(); ++j) {
+      pos = current_read_pos.at(j);
+      v->add_associated_variants(pos, current_read_alleles.at(j), current_read_alleles.at(i), fwd, rev);
+    }
   }
   return v;
 }
@@ -151,7 +172,7 @@ int identify_contamination(std::string bed, std::string bam, std::string pairs_f
   while(sam_itr_next(in, iter, aln) >= 0) {
     identify_amp(primers, aln->core.pos, bam_endpos(aln) - 1, fwd, rev);
     if(fwd.size() == 0 || rev.size() == 0 || ((aln->core.flag&BAM_FUNMAP) != 0)){
-      std::cout  << bam_get_qname(aln) << ((bam_is_rev(aln)) ? "/2" : "/1") << "\t" << aln->core.isize << std::endl;
+      // std::cout  << bam_get_qname(aln) << ((bam_is_rev(aln)) ? "/2" : "/1") << "\t" << aln->core.isize << std::endl;
       continue;
     }
     if(bam_write1(out, aln) < 0){
