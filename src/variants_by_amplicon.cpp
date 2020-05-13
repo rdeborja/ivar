@@ -349,3 +349,73 @@ std::vector<int> var_by_amp::get_alleles_above_freq(double min_freq){
   }
   return v;
 }
+
+double compute_critical_value(uint32_t ctable[16][16], int nrow, int ncol){
+  double exp[16][16];
+  int i, j;
+  double cv = 0;
+  uint32_t row_total[16] = {0}, col_total[16] = {0}, total = 0;
+  for (i = 0; i < nrow; ++i) {
+    for (j = 0; j < ncol; ++j) {
+      col_total[j] += ctable[i][j];
+      row_total[i] += ctable[i][j];
+    }
+  }
+  total = std::accumulate(row_total, row_total+nrow, total);
+  for (i = 0; i < nrow; ++i) {
+    for (j = 0; j < ncol; ++j) {
+      exp[i][j] = (col_total[j] * row_total[i])/(double) total;
+    }
+  }
+  for (i = 0; i < nrow; ++i) {
+    for (j = 0; j < ncol; ++j) {
+      cv += pow(ctable[i][j] - exp[i][j], 2)/exp[i][j];
+    }
+  }
+  return cv;
+}
+
+double chisqr(uint32_t dof, double cv){
+  if(cv < 0 || dof < 1){
+    return 0;
+  }
+  double k = ((double) dof) * 0.5;
+  double x = cv * 0.5;
+  if(dof == 2){
+    return exp(-1.0 * x);
+  }
+  double pvalue = igf(k, x);
+  if(isnan(pvalue) || isinf(pvalue) || pvalue <= 1e-8){
+    return 1e-14;
+  }
+  pvalue /= tgamma(k);
+  return (1.0 - pvalue);
+}
+
+double igf(double s, double z){
+if(z < 0.0){
+  return 0;
+ }
+ double sc = (1.0 / s);
+ sc *= pow(z, s);
+ sc *= exp(-z);
+ double sum = 1.0;
+ double num = 1.0;
+ double den = 1.0; 
+ for(int i = 0; i < 200; i++){
+   num *= z;
+   s++;
+   den *= s;
+   sum += (num / den);
+ }
+ return sum * sc;
+}
+
+double* chisqr_goodness_of_fit(uint32_t ctable[16][16], int nrow, int ncol){
+  static double res[2] = {0};
+  uint32_t dof = (nrow-1) * (ncol-1);
+  double cv = compute_critical_value(ctable, nrow, ncol);
+  res[0] = chisqr(dof, cv);
+  res[1] = cv;
+  return res;
+}

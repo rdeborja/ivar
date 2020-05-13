@@ -1,6 +1,7 @@
 #include <iostream>
 #include <cmath>
 #include <map>
+#include <numeric>
 
 #include "primer_bed.h"
 #include "allele_functions.h"
@@ -45,5 +46,10 @@ public:
   int add_associated_variants(uint32_t pos, allele *aa, allele *a, primer *fwd, primer *rev); // Add associated variant for a particular allele
   void print_linked_variants();
 };
+
+double chisqr(int dof, double cv);
+double igf(double s, double z);
+double* chisqr_goodness_of_fit(uint32_t ctable[16][16], int nrow, int ncol);
+double compute_critical_value(uint32_t ctable[16][16], int nrow, int ncol);
 
 #endif
