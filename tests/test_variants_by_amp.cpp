@@ -139,6 +139,19 @@ int main()
   success += (v->get_associated_variants().at(1)[8]["ATG"] == 1) ? 0 : 1;
 
   v->print_graph(true);
+
+  // Test chi sqr
+  uint32_t ctable[16][16];
+  int nrow = 2, ncol = 2;
+  ctable[0][0] = 45;
+  ctable[0][1] = 31;
+  ctable[1][0] = 15;
+  ctable[1][1] = 17;
+  double *res;
+  res = chisqr_goodness_of_fit(ctable, nrow, ncol);
+
+  success += (fabs(res[0] - 0.238786) < 0.00001) ? 0 : 1;
+  success += (fabs(res[1] - 1.38775) < 0.00001) ? 0 : 1;
   
   return (success == 0) ? 0 : -1;
 }
