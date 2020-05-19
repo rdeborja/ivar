@@ -28,7 +28,7 @@ var_by_amp* get_alleles_per_read(bam1_t *aln, var_by_amp *v, primer *fwd, primer
   std::string indel;
   std::vector<allele*> current_read_alleles;
   std::vector<uint32_t> current_read_pos;
-  uint8_t *qual = bam_get_qual(aln), q;
+  uint8_t *qual = bam_get_qual(aln), q = 0;
   if(v == NULL)
     v = new var_by_amp(pos);
   while (i < ncigar ) {
@@ -117,12 +117,14 @@ var_by_amp* get_alleles_per_read(bam1_t *aln, var_by_amp *v, primer *fwd, primer
     }
     i++;
   }
-  if(aln->core.pos <= 3049 && 3049 <= bam_endpos(aln)){
+  if(aln->core.pos <= 3988 && 3988 <= bam_endpos(aln)){
     uint32_t current_pos;
     for (uint i = 0; i < current_read_alleles.size(); ++i) {
       current_pos = current_read_pos.at(i);
       v = v->get_node(current_pos);
-      for (uint j = i+1; j < current_read_alleles.size(); ++j) {
+      for (uint j = 0; j < current_read_alleles.size(); ++j) {
+	if(j==i)
+	  continue;
 	pos = current_read_pos.at(j);
 	v->add_associated_variants(pos, current_read_alleles.at(j), current_read_alleles.at(i), fwd, rev);
       }
@@ -231,7 +233,7 @@ int identify_contamination(std::string bed, std::string bam, std::string pairs_f
 	  if(counts.at(j) == unique_primer_count || tmp->get_fwd_primers().size() == 1)
 	    continue;
 	  tmp->print_graph(false);
-	  tmp->print_linked_variants();
+	  tmp->print_linked_variants(min_freq);
 	  std::cout << "O " << "\t"
 		    << i << "\t"
 		    << unique_alleles.at(j)->nuc
@@ -244,9 +246,9 @@ int identify_contamination(std::string bed, std::string bam, std::string pairs_f
       }
     }
     std::cout << "---" << std::endl << std::endl;
-    cur = cur->get_node(3049);
-    cur->print_graph(false);
-    cur->print_linked_variants();
+    cur = cur->get_node(3988);
+    // cur->print_graph(false);
+    cur->print_linked_variants(min_freq);
     // cur->print_graph(true);
     delete cur; 
   }
