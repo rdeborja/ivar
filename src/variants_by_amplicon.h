@@ -44,12 +44,15 @@ public:
   int get_num_unique_primers();
   void get_linked_variants_on_amplicon(int allele_indice);
   int add_associated_variants(uint32_t pos, allele *aa, allele *a, primer *fwd, primer *rev); // Add associated variant for a particular allele
-  void print_linked_variants();
+  void print_linked_variants(double min_freq);
+  uint32_t** get_contingency_table(uint32_t pos, primer *fwd, primer *rev, double min_freq, int &nrow, int &ncol, std::vector<std::string> &row_alleles, std::vector<std::string> &col_alleles);
+  void get_unique_primers(std::vector<primer*> &uniq_fwd, std::vector<primer*> &uniq_rev);
+  void get_pos_extent(primer *fwd, primer *rev, uint32_t* extent);
 };
 
 double chisqr(int dof, double cv);
 double igf(double s, double z);
-double* chisqr_goodness_of_fit(uint32_t ctable[16][16], int nrow, int ncol);
-double compute_critical_value(uint32_t ctable[16][16], int nrow, int ncol);
+double* chisqr_goodness_of_fit(uint32_t **ctable, int nrow, int ncol);
+double compute_critical_value(uint32_t **ctable, int nrow, int ncol);
 
 #endif

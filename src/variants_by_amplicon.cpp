@@ -244,20 +244,28 @@ int find_allele(allele *a, std::vector<allele*> _alleles){
   return -1;
 }
 
-int var_by_amp::get_num_unique_primers(){
+void var_by_amp::get_unique_primers(std::vector<primer*> &uniq_fwd, std::vector<primer*> &uniq_rev){
   std::vector<primer*> pfwd = this->get_fwd_primers();
   std::vector<primer*> prev = this->get_rev_primers();
-  std::vector<uint16_t> uniq_fwd_indices;
-  std::vector<uint16_t> uniq_rev_indices;
-  std::vector<uint16_t>::iterator fwdit;
+  std::vector<primer*>::iterator fwdit;
+  static uint16_t fwd_indice;
   for (uint i = 0; i< pfwd.size();i++) {
-    fwdit = std::find(uniq_fwd_indices.begin(), uniq_fwd_indices.end(), pfwd.at(i)->get_indice());
-    if(fwdit == uniq_fwd_indices.end() || uniq_rev_indices.at(fwdit - uniq_fwd_indices.begin()) != prev.at(i)->get_indice()){
-      uniq_fwd_indices.push_back(pfwd.at(i)->get_indice());
-      uniq_rev_indices.push_back(prev.at(i)->get_indice());
+    fwd_indice = pfwd.at(i)->get_indice();
+    fwdit = std::find_if(uniq_fwd.begin(), uniq_fwd.end(), [] (const primer* s) {
+	return (fwd_indice == s->get_indice());
+      });
+    if(fwdit == uniq_fwd.end() || uniq_rev.at(fwdit - uniq_fwd.begin())->get_indice() != prev.at(i)->get_indice()){
+      uniq_fwd.push_back(pfwd.at(i));
+      uniq_rev.push_back(prev.at(i));
     }
   }
-  return uniq_fwd_indices.size();
+}
+
+int var_by_amp::get_num_unique_primers(){
+  std::vector<primer*> uniq_fwd;
+  std::vector<primer*> uniq_rev;
+  this->get_unique_primers(uniq_fwd, uniq_rev);
+  return uniq_fwd.size();
 }
 
 void var_by_amp::get_distinct_variants_amp(double min_freq, std::vector<allele*> &unique_alleles, std::vector<uint32_t> &counts, uint &unique_primers){
@@ -281,39 +289,122 @@ void var_by_amp::get_distinct_variants_amp(double min_freq, std::vector<allele*>
   }
 }
 
-void var_by_amp::print_linked_variants(){
-  double pa, pb, pab, dmax, d;
-  uint32_t total_depth = this->get_depth(), asc_pos_depth;
-  var_by_amp *v;
-  int allele_ind;
-  allele *asc_a;
-  std::string nuc, deleted_bases;
+uint32_t** var_by_amp::get_contingency_table(uint32_t pos, primer *fwd, primer *rev, double min_freq, int &nrow, int &ncol, std::vector<std::string> &row_alleles, std::vector<std::string> &col_alleles){
+  row_alleles.clear();
+  col_alleles.clear();
+  uint32_t** ctable;
+  ctable = new uint32_t*[100];
+  for (int i = 0; i < 100; ++i) {
+    ctable[i] = new uint32_t[100];
+    for (int j = 0; j < 100; ++j) {
+      ctable[i][j] = 0;
+    }
+  }
+  std::vector<primer*> fwd_primers = this->get_fwd_primers();
+  std::vector<primer*> rev_primers = this->get_rev_primers();
+  std::vector<std::string> cols;
+  std::vector<std::string>::iterator cit;
+  std::vector<allele*> _alleles = this->get_alleles();
+  int current_col = 0;
+  nrow = 0;
+  ncol = 0;
+  /*
+    Contingency table
+    | Current pos\Other pos  |  |  |  |
+    | Allele 1               |  |  |  |
+    | Allele 2               |  |  |  |
+    | Allele 3               |  |  |  |
+   */
+  std::map<uint32_t, std::map<std::string, uint32_t>> m;
+  uint32_t total_depth = this->get_depth();
   for (std::vector<allele*>::iterator it = alleles.begin(); it != alleles.end(); ++it) {
-    pa = (*it)->depth / (double) total_depth;
-    std::map<uint32_t, std::map<std::string, uint32_t>> m = this->get_associated_variants().at((it - alleles.begin()));
-    for(std::map<uint32_t, std::map<std::string, uint32_t>>::iterator m_it1 = m.begin(); m_it1 != m.end(); m_it1++){
-      v = this->get_node(m_it1->first);
-      // v->print_graph(false);
-      asc_pos_depth = v->get_depth();
-      for(std::map<std::string, uint32_t>::iterator m_it2 = m_it1->second.begin(); m_it2 != m_it1->second.end(); m_it2++){
-	nuc = m_it2->first.substr(0, m_it2->first.find("-"));
-	deleted_bases = "";
-	if(m_it2->first.find("-") != std::string::npos)
-	  deleted_bases = m_it2->first.substr(m_it2->first.find("-")+1, m_it2->first.size());
-	asc_a = v->get_allele(nuc, deleted_bases, this->get_fwd_primers().at(it - alleles.begin()), this->get_rev_primers().at(it - alleles.begin()), allele_ind);
-	if(asc_a != NULL){
-	  pb = asc_a->depth/(double) asc_pos_depth;
-	  pab = m_it2->second/(double) std::min(total_depth, asc_pos_depth);
-	  d = pab - (pa * pb);
-	  dmax = (d > 0) ? std::min(pa * (1-pb), (1-pa)*pb) : std::max(-pa*pb, -(1-pa) * (1-pb));
-	  if(dmax >= 0.75 || dmax <= 0.25 || d == 0){
-	    std::cout << this->pos << this->delim << (*it)->nuc << (*it)->deleted_bases << this->delim << m_it1->first << this->delim << m_it2->first << this->delim << m_it2->second << this->delim << dmax << this->delim << d << std::endl;
-	  }
-	} else {
-	  std::cout << nuc << deleted_bases << "not found for pos " << m_it1->first << std::endl;
-	}
+    if(fwd_primers.at(it-alleles.begin())->get_indice() != fwd->get_indice() || rev_primers.at(it-alleles.begin())->get_indice() != rev->get_indice())
+      continue;
+    if(((*it)->depth/(double) total_depth) <= min_freq)
+      continue;
+    m = this->get_associated_variants().at((it - alleles.begin()));
+    if(m.find(pos) == m.end()){
+      continue;
+    }
+    row_alleles.push_back((*it)->nuc);
+    for(std::map<std::string, uint32_t>::iterator mit = m[pos].begin(); mit != m[pos].end(); mit++){
+      cit = std::find(cols.begin(), cols.end(), mit->first);
+      if(cit == cols.end()){ // New col
+	ncol++;
+	current_col = ncol-1;
+	cols.push_back(mit->first);
+	col_alleles.push_back(mit->first);
+      } else {
+	current_col = (cit - cols.begin());
+      }
+      ctable[nrow][current_col] = mit->second;
+    }
+    nrow++;
+  }
+  return ctable;
+}
+
+void var_by_amp::get_pos_extent(primer *fwd, primer *rev, uint32_t *extent){
+  std::vector<allele*> _alleles = this->get_alleles();
+  extent[0] = std::numeric_limits<uint32_t>::max();
+  extent[1] = 0;
+  std::map<uint32_t, std::map<std::string, uint32_t>> m;
+  for (std::vector<allele*>::iterator it = _alleles.begin(); it != _alleles.end(); ++it) {
+    if(fwd_primers.at(it-_alleles.begin())->get_indice() != fwd->get_indice() || rev_primers.at(it-_alleles.begin())->get_indice() != rev->get_indice())
+      continue;
+    m = this->get_associated_variants().at((it - _alleles.begin()));
+    for(std::map<uint32_t, std::map<std::string, uint32_t>>::iterator mit = m.begin(); mit != m.end(); mit++){
+      if(extent[0] > mit->first){
+	extent[0] = mit->first;
+      }
+      if(extent[1] < mit->first){
+	extent[1] = mit->first;
       }
     }
+  }
+}
+
+void var_by_amp::print_linked_variants(double min_freq){
+  std::string nuc, deleted_bases;
+  int nrow, ncol;
+  uint32_t **ctable;
+  double *res;
+  std::map<uint32_t, std::map<std::string, uint32_t>> m;
+  std::vector<primer*> uniq_fwd;
+  std::vector<primer*> uniq_rev;
+  this->get_unique_primers(uniq_fwd, uniq_rev);
+  uint32_t extent[2];
+  std::vector<primer*>::iterator fit = uniq_fwd.begin();
+  std::vector<primer*>::iterator rit = uniq_rev.begin();
+  std::vector<std::string> row_alleles, col_alleles;
+  for (; fit != uniq_fwd.end(); ++fit, ++rit) {
+    this->get_pos_extent(*fit, *rit, extent);
+    for (uint32_t i = extent[0]; i < extent[1]+1; ++i) {
+      ctable = this->get_contingency_table(i, *fit, *rit, min_freq, nrow, ncol, row_alleles, col_alleles);
+      if(ctable == NULL)
+	continue;
+      if(ncol == 1 || nrow == 1)
+	continue;
+      res = chisqr_goodness_of_fit(ctable, nrow, ncol);
+      if(res[0] > 0.05)
+	continue;
+      std::cout << this->get_pos() << this->delim << i << this->delim << res[0] << this->delim << res[1] << this->delim << (*fit)->get_name() << this->delim << (*rit)->get_name()  << std::endl;
+      for (int i = 0; i < nrow+1; ++i) {
+	for (int j = 0; j < ncol; ++j) {
+	  if(i == 0){
+	    if(j==0)
+	      std::cout << "\t";
+	    std::cout << col_alleles.at(j) << "\t";
+	  } else {
+	    if(j == 0)
+	      std::cout << row_alleles.at(i-1) << "\t";
+	    std::cout << ctable[i-1][j] << "\t";
+	  }
+	}
+	std::cout << std::endl;
+      }
+      delete[] ctable;
+    } 
   }
 }
 
@@ -325,7 +416,7 @@ int var_by_amp::add_associated_variants(uint32_t pos, allele *aa, allele *a, pri
     return -1;
   }
   std::string nuc = (aa->deleted_bases.size() == 0) ? aa->nuc : aa->nuc + "-" + aa->deleted_bases;
-  if(this->associated_variants.at(ind).find(pos) == this->associated_variants.at(ind).end()){
+  if(associated_variants.at(ind).find(pos) == associated_variants.at(ind).end()){
     std::map<std::string, uint32_t> m;
     m[nuc] = 1;
     this->associated_variants.at(ind)[pos] = m;
@@ -350,7 +441,7 @@ std::vector<int> var_by_amp::get_alleles_above_freq(double min_freq){
   return v;
 }
 
-double compute_critical_value(uint32_t ctable[16][16], int nrow, int ncol){
+double compute_critical_value(uint32_t** ctable, int nrow, int ncol){
   double exp[16][16];
   int i, j;
   double cv = 0;
@@ -411,7 +502,7 @@ if(z < 0.0){
  return sum * sc;
 }
 
-double* chisqr_goodness_of_fit(uint32_t ctable[16][16], int nrow, int ncol){
+double* chisqr_goodness_of_fit(uint32_t **ctable, int nrow, int ncol){
   static double res[2] = {0};
   uint32_t dof = (nrow-1) * (ncol-1);
   double cv = compute_critical_value(ctable, nrow, ncol);
