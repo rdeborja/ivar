@@ -140,9 +140,22 @@ int main()
 
   v->print_graph(true);
 
+  int nrow, ncol;
+  uint32_t **_ctable;
+  std::vector<std::string> row_alleles, col_alleles;
+  _ctable = v->get_contingency_table(8, fwd, rev, 0, nrow, ncol, row_alleles, col_alleles);
+  
   // Test chi sqr
-  uint32_t ctable[16][16];
-  int nrow = 2, ncol = 2;
+  uint32_t **ctable = new uint32_t*[20];
+  for (int i = 0; i < 20; ++i) {
+    ctable[i] = new uint32_t[20];
+    for (int j = 0; j < 20; ++j) {
+      ctable[i][j]= 0;
+    }
+  }
+
+  nrow = 2;
+  ncol = 2;
   ctable[0][0] = 45;
   ctable[0][1] = 31;
   ctable[1][0] = 15;
@@ -152,6 +165,29 @@ int main()
 
   success += (fabs(res[0] - 0.238786) < 0.00001) ? 0 : 1;
   success += (fabs(res[1] - 1.38775) < 0.00001) ? 0 : 1;
-  
+
+  uint32_t extent[2];
+  extent[0] = 0;
+  extent[1] = 0;
+  v->get_pos_extent(fwd, rev, extent);
+  std::cout << "Extent: " << extent[0] << " " << extent[1] << std::endl;
+
+  nrow = 3, ncol = 3;
+  ctable[0][0] = 1000;
+  ctable[0][1] = 2000;
+  ctable[0][2] = 3000;
+  ctable[1][0] = 4000;
+  ctable[1][1] = 5000;
+  ctable[1][2] = 6000;
+  ctable[2][0] = 7000;
+  ctable[2][1] = 8000;
+  ctable[2][2] = 9000;
+  res = chisqr_goodness_of_fit(ctable, nrow, ncol);
+
+  success += (fabs(res[0] - 0) < 0.00001) ? 0 : 1;
+  success += (fabs(res[1] - 468.75) < 0.00001) ? 0 : 1;
+
+  delete[] ctable;
+
   return (success == 0) ? 0 : -1;
 }
