@@ -84,8 +84,13 @@ cigar_ quality_trim(bam1_t* r, uint8_t qual_threshold, uint8_t sliding_window){
   int del_len, cig, temp;
   uint32_t i = 0, j = 0;
   cigar_ t;
-  while(m >= qual_threshold && (i < (uint32_t)r->core.l_qseq)){
+  init_cigar(&t);
+  if(0 > r->core.l_qseq - sliding_window)
+    sliding_window = (uint32_t)r->core.l_qseq;
+  while(i < (uint32_t)r->core.l_qseq){
     m = mean_quality(qual, i, i+sliding_window);
+    if(m < qual_threshold)
+      break;
     i++;
     if(i > (uint32_t)r->core.l_qseq - sliding_window)
       sliding_window--;
@@ -97,7 +102,9 @@ cigar_ quality_trim(bam1_t* r, uint8_t qual_threshold, uint8_t sliding_window){
   del_len = r->core.l_qseq - i;
   start_pos = get_pos_on_reference(cigar, r->core.n_cigar, del_len, r->core.pos); // For reverse reads need to set core->pos.
   if(reverse && start_pos <= r->core.pos) {
+    free(ncigar);
     t.cigar = cigar;
+    t.free_cig = false;
     t.nlength = r->core.n_cigar;
     t.start_pos = r->core.pos;
     return t;
@@ -140,6 +147,7 @@ cigar_ quality_trim(bam1_t* r, uint8_t qual_threshold, uint8_t sliding_window){
   }
   t.cigar = ncigar;
   t.nlength = j;
+  t.free_cig = true;
   t.start_pos = start_pos;
   return t;
 }
@@ -227,6 +235,7 @@ cigar_ primer_trim(bam1_t *r, int32_t new_pos, bool unpaired_rev = false){
   }
   return {
     ncigar,
+      true,
       j,
       start_pos
   };
@@ -281,26 +290,22 @@ void get_overlapping_primers(bam1_t* r, std::vector<primer> primers, std::vector
   }
 }
 
-cigar_ condense_cigar(uint32_t* cigar, uint32_t n){
+void condense_cigar(cigar_ *t){
   uint32_t i = 0, len = 0, cig, next_cig;
-  cigar_ t;
-  while(i< n -1){
-    cig = bam_cigar_op(cigar[i]);
-    next_cig = bam_cigar_op(cigar[i+1]);
+  while(i< t->nlength -1){
+    cig = bam_cigar_op(t->cigar[i]);
+    next_cig = bam_cigar_op(t->cigar[i+1]);
     if(cig == next_cig){
-      len = bam_cigar_oplen(cigar[i])+bam_cigar_oplen(cigar[i+1]);
-      cigar[i] = bam_cigar_gen(len, bam_cigar_op(cigar[i]));
-      for(uint32_t j = i+1; j < n - 1; j++){
-	cigar[j] = cigar[j+1];
+      len = bam_cigar_oplen(t->cigar[i])+bam_cigar_oplen(t->cigar[i+1]);
+      t->cigar[i] = bam_cigar_gen(len, bam_cigar_op(t->cigar[i]));
+      for(uint32_t j = i+1; j < t->nlength - 1; j++){
+	t->cigar[j] = t->cigar[j+1];
       }
-      n--;
+      t->nlength--;
     } else {
       i++;
     }
   }
-  t.cigar = cigar;
-  t.nlength = n;
-  return t;
 }
 
 void add_pg_line_to_header(bam_hdr_t** hdr, char *cmd){
@@ -315,16 +320,17 @@ void add_pg_line_to_header(bam_hdr_t** hdr, char *cmd){
   (*hdr)->l_text = len-1;
 }
 
-int trim_bam_qual_primer(std::string bam, std::string bed, std::string bam_out, std::string region_, uint8_t min_qual, uint8_t sliding_window, std::string cmd, bool write_no_primer_reads, int min_length = 30){
+int trim_bam_qual_primer(std::string bam, std::string bed, std::string bam_out, std::string region_, uint8_t min_qual, uint8_t sliding_window, std::string cmd, bool write_no_primer_reads, bool mark_qcfail_flag, int min_length = 30) {
   std::vector<primer> primers;
   if(!bed.empty()){
     primers = populate_from_file(bed);
+    if(primers.size() == 0){
+      std::cout << "Exiting." << std::endl;
+      return -1;
+    }
   }
-  // if(primers.size() == 0){
-  //   return 0;
-  // }
   if(bam.empty()){
-    std::cout << "Bam file in empty." << std::endl;
+    std::cout << "Bam file is empty." << std::endl;
     return -1;
   }
   bam_out += ".bam";
@@ -399,6 +405,7 @@ int trim_bam_qual_primer(std::string bam, std::string bed, std::string bam_out, 
   bam1_t *aln = bam_init1();
   int ctr = 0;
   cigar_ t;
+  init_cigar(&t);
   uint32_t primer_trim_count = 0, no_primer_counter = 0, low_quality = 0;
   bool unmapped_flag = false;
   uint32_t unmapped_counter = 0;
@@ -423,6 +430,7 @@ int trim_bam_qual_primer(std::string bam, std::string bed, std::string bam_out, 
 	    aln->core.pos += t.start_pos;
 	  }
 	  replace_cigar(aln, t.nlength, t.cigar);
+      free(t.cigar);
 	  // Add count to primer
 	  cit = std::find(primers.begin(), primers.end(), cand_primer);
 	  if(cit != primers.end())
@@ -431,7 +439,7 @@ int trim_bam_qual_primer(std::string bam, std::string bed, std::string bam_out, 
 	t = quality_trim(aln, min_qual, sliding_window);	// Quality Trimming
 	if(bam_is_rev(aln))
 	  aln->core.pos = t.start_pos;
-	t = condense_cigar(t.cigar, t.nlength);
+	condense_cigar(&t);
 	// aln->core.pos += t.start_pos;
 	replace_cigar(aln, t.nlength, t.cigar);
       } else {			// Unpaired reads: Might be stitched reads
@@ -461,7 +469,7 @@ int trim_bam_qual_primer(std::string bam, std::string bed, std::string bam_out, 
 	    cit->add_read_count(1);
 	}
 	t = quality_trim(aln, min_qual, sliding_window);	// Quality Trimming
-	t = condense_cigar(t.cigar, t.nlength);
+	condense_cigar(&t);
 	replace_cigar(aln, t.nlength, t.cigar);
       }
       if(primer_trimmed){
@@ -488,6 +496,7 @@ int trim_bam_qual_primer(std::string bam, std::string bed, std::string bam_out, 
 	}
       } else {
 	if((primers.size() == 0 || write_no_primer_reads) && !unmapped_flag){ // Write mapped reads to BAM if -e flag given
+          if (mark_qcfail_flag) aln->core.flag |= BAM_FQCFAIL;
 	  if(bam_write1(out, aln) < 0){
 	    std::cout << "Not able to write to BAM" << std::endl;
 	    hts_itr_destroy(iter);
@@ -503,6 +512,19 @@ int trim_bam_qual_primer(std::string bam, std::string bed, std::string bam_out, 
       }
     } else {
       low_quality++;
+      if (mark_qcfail_flag) {
+        aln->core.flag |= BAM_FQCFAIL;
+	if (bam_write1(out, aln) < 0){
+	  std::cout << "Not able to write to BAM" << std::endl;
+	  hts_itr_destroy(iter);
+	  hts_idx_destroy(idx);
+	  bam_destroy1(aln);
+	  bam_hdr_destroy(header);
+	  sam_close(in);
+	  bgzf_close(out);
+	  return -1;
+	}
+      }
     }
     ctr++;
     if(ctr % log_skip == 0){
@@ -516,9 +538,16 @@ int trim_bam_qual_primer(std::string bam, std::string bed, std::string bam_out, 
     std::cout << cit->get_name() << "\t" << cit->get_read_count() << std::endl;
   }
   std::cout << std::endl << "Trimmed primers from " << round_int(primer_trim_count, mapped) << "% (" << primer_trim_count <<  ") of reads." << std::endl;
-  std::cout << round_int( low_quality, mapped) << "% (" << low_quality << ") of reads were quality trimmed below the minimum length of " << min_length << " bp and were not writen to file." << std::endl;
+  std::cout << round_int( low_quality, mapped) << "% (" << low_quality << ") of reads were quality trimmed below the minimum length of " << min_length << " bp and were ";
+  if (mark_qcfail_flag) {
+    std::cout << "marked as failed" << std::endl;
+  } else {
+    std::cout << "not written to file." << std::endl;
+  }
   if(write_no_primer_reads){
-    std::cout << round_int(no_primer_counter, mapped) << "% ("  << no_primer_counter << ") of reads started outside of primer regions. Since the -e flag was given, these reads were written to file." << std::endl;
+    std::cout << round_int(no_primer_counter, mapped) << "% ("  << no_primer_counter << ") of reads started outside of primer regions. Since the -e flag was given, these reads were written to file";
+    if (mark_qcfail_flag) std::cout << " and the BAM_QCFAIL flag set";
+    std::cout << "." << std::endl;
   } else if (primers.size() == 0) {
     std::cout << round_int(no_primer_counter, mapped) << "% ("  << no_primer_counter << ") of reads started outside of primer regions. Since there were no primers found in BED file, these reads were written to file." << std::endl;
   } else {

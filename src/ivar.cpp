@@ -16,12 +16,13 @@
 #include "suffix_tree.h"
 #include "get_common_variants.h"
 
-const std::string VERSION = "1.2.2";
+const std::string VERSION = "1.2.3";
 
 struct args_t {
   std::string bam;		// -i
   std::string bed;		// -b
   std::string text;		// -t
+  std::string seq_id; // -i for consensus
   std::string prefix;		// -p
   std::string ref;		// -r
   std::string region;		// -R
@@ -38,6 +39,7 @@ struct args_t {
   std::string primer_pair_file;	// -f
   std::string file_list;		// -f
   bool write_no_primers_flag;	// -e
+  bool mark_qcfail_flag;    // -f
   std::string gff;		// -g
 } g_args;
 
@@ -66,7 +68,8 @@ void print_trim_usage(){
     "           -m    Minimum length of read to retain after trimming (Default: 30)\n"
     "           -q    Minimum quality threshold for sliding window to pass (Default: 20)\n"
     "           -s    Width of sliding window (Default: 4)\n"
-    "           -e    Include reads with no primers. By default, reads with no primers are excluded\n\n"
+    "           -e    Include reads with no primers. By default, reads with no primers are excluded\n"
+    "           -f    Mark reads as QCFAIL instead of excluding them\n\n"
     "Output Options   Description\n"
     "           -p    (Required) Prefix for the output BAM file\n";
 }
@@ -114,7 +117,8 @@ void print_consensus_usage(){
     "           -k    If '-k' flag is added, regions with depth less than minimum depth will not be added to the consensus sequence. Using '-k' will override any option specified using -n \n"
     "           -n    (N/-) Character to print in regions with less than minimum coverage(Default: N)\n\n"
     "Output Options   Description\n"
-    "           -p    (Required) Prefix for the output fasta file and quality file\n";
+    "           -p    (Required) Prefix for the output fasta file and quality file\n"
+    "           -i    (Optional) Name of fasta header. By default, the prefix is used to create the fasta header in the following format, Consensus_<prefix>_threshold_<frequency-threshold>_quality_<minimum-quality>\n";
 }
 
 void print_removereads_usage(){
@@ -158,9 +162,9 @@ void print_version_info(){
     "\nPlease raise issues and bug reports at https://github.com/andersen-lab/ivar/\n\n";
 }
 
-static const char *trim_opt_str = "i:b:p:m:q:s:eh?";
+static const char *trim_opt_str = "i:b:p:m:q:s:efh?";
 static const char *variants_opt_str = "p:t:q:m:r:g:h?";
-static const char *consensus_opt_str = "p:q:t:m:n:kh?";
+static const char *consensus_opt_str = "i:p:q:t:m:n:kh?";
 static const char *removereads_opt_str = "i:p:t:b:h?";
 static const char *filtervariants_opt_str = "p:t:f:h?";
 static const char *getmasked_opt_str = "i:b:f:p:h?";
@@ -188,7 +192,7 @@ int main(int argc, char* argv[]){
     return -1;
   }
   std::stringstream cl_cmd;
-  cl_cmd << "@PG\tID:ivar-" << argv[1]  <<  "\tPN:ivar\tVN:1.0.0\tCL:" << argv[0] << " ";
+  cl_cmd << "@PG\tID:ivar-" << argv[1]  <<  "\tPN:ivar\tVN:" << VERSION << "\tCL:" << argv[0] << " ";
   for (int i = 1; i < argc; ++i) {
     cl_cmd << argv[i];
     if(i != argc-1)
@@ -210,6 +214,7 @@ int main(int argc, char* argv[]){
     g_args.sliding_window = 4;
     g_args.min_length = 30;
     g_args.write_no_primers_flag = false;
+    g_args.mark_qcfail_flag = false;
     g_args.bed = "";
     opt = getopt( argc, argv, trim_opt_str);
     while( opt != -1 ) {
@@ -232,10 +237,13 @@ int main(int argc, char* argv[]){
       case 's':
 	g_args.sliding_window = std::stoi(optarg);
 	break;
-      case 'h':
       case 'e':
 	g_args.write_no_primers_flag = true;
 	break;
+      case 'f':
+        g_args.mark_qcfail_flag = true;
+        break;
+      case 'h':
       case '?':
 	print_trim_usage();
 	return -1;
@@ -248,7 +256,7 @@ int main(int argc, char* argv[]){
       return -1;
     }
     g_args.prefix = get_filename_without_extension(g_args.prefix,".bam");
-    res = trim_bam_qual_primer(g_args.bam, g_args.bed, g_args.prefix, g_args.region, g_args.min_qual, g_args.sliding_window, cl_cmd.str(), g_args.write_no_primers_flag, g_args.min_length);
+    res = trim_bam_qual_primer(g_args.bam, g_args.bed, g_args.prefix, g_args.region, g_args.min_qual, g_args.sliding_window, cl_cmd.str(), g_args.write_no_primers_flag, g_args.mark_qcfail_flag, g_args.min_length);
   } else if (cmd.compare("variants") == 0){
     g_args.min_qual = 20;
     g_args.min_threshold = 0.03;
@@ -307,6 +315,7 @@ int main(int argc, char* argv[]){
     res = call_variants_from_plup(std::cin, g_args.prefix, g_args.min_qual, g_args.min_threshold, g_args.min_depth, g_args.ref, g_args.gff);
   } else if (cmd.compare("consensus") == 0){
     opt = getopt( argc, argv, consensus_opt_str);
+    g_args.seq_id = "";
     g_args.min_threshold = 0;
     g_args.min_depth = 10;
     g_args.gap = 'N';
@@ -316,6 +325,9 @@ int main(int argc, char* argv[]){
       switch( opt ) {
       case 't':
 	g_args.min_threshold = atof(optarg);
+	break;
+      case 'i':
+	g_args.seq_id = optarg;
 	break;
       case 'p':
 	g_args.prefix = optarg;
@@ -360,7 +372,7 @@ int main(int argc, char* argv[]){
       std::cout << "Regions with depth less than minimum depth will not added to consensus" << std::endl;
     else
       std::cout << "Regions with depth less than minimum depth covered by: " << g_args.gap << std::endl;
-    res = call_consensus_from_plup(std::cin, g_args.prefix, g_args.min_qual, g_args.min_threshold, g_args.min_depth, g_args.gap, g_args.keep_min_coverage);
+    res = call_consensus_from_plup(std::cin, g_args.seq_id, g_args.prefix, g_args.min_qual, g_args.min_threshold, g_args.min_depth, g_args.gap, g_args.keep_min_coverage);
   } else if (cmd.compare("removereads") == 0){
     opt = getopt( argc, argv, removereads_opt_str);
     while( opt != -1 ) {
